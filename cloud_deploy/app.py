@@ -32,7 +32,6 @@ PAGE_ID = os.getenv('FACEBOOK_PAGE_ID')
 PAGE_TOKEN = os.getenv('PAGE_ACCESS_TOKEN')
 IG_ID = os.getenv('INSTAGRAM_ACCOUNT_ID')
 GEMINI_KEY = os.getenv('GEMINI_API_KEY')
-OPENAI_KEY = os.getenv('OPENAI_API_KEY')
 
 ai_client = genai.Client(api_key=GEMINI_KEY) if GEMINI_KEY else None
 
@@ -98,7 +97,7 @@ def remove_background_ai_precision(img_path):
 
     return orig_pil.convert('RGBA')
 
-def analyze_with_ai(prod_name, reg_price, off_price, style_prompt='', ai_model='gemini'):
+def analyze_with_ai(prod_name, reg_price, off_price, style_prompt=''):
     prompt = f"""You are the creative director for BioGlow, a premier authentic skincare brand in Bangladesh.
 Product: '{prod_name}'. Regular price: {reg_price} TK, Offer price: {off_price} TK.
 User Custom Style Command: '{style_prompt if style_prompt else "Clean luxury studio"}'
@@ -121,25 +120,10 @@ Return ONLY a valid JSON object with:
    - Clear call to action (inbox with name, address, phone; nationwide cash on delivery)
    - 6-8 relevant hashtags including #BioGlow
 """
-    if ai_model == 'chatgpt' and OPENAI_KEY:
-        try:
-            headers = {"Authorization": f"Bearer {OPENAI_KEY}", "Content-Type": "application/json"}
-            payload = {
-                "model": "gpt-4o",
-                "messages": [{"role": "user", "content": prompt}],
-                "response_format": {"type": "json_object"}
-            }
-            res = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload, timeout=20)
-            if res.status_code == 200:
-                content = res.json()["choices"][0]["message"]["content"]
-                return json.loads(content)
-        except Exception as e:
-            print(f"ChatGPT error: {e}")
-
     if ai_client:
         try:
             resp = ai_client.models.generate_content(
-                model='gemini-3.5-flash',
+                model='gemini-3.5-flash-lite',
                 contents=prompt,
                 config=dict(response_mime_type='application/json')
             )
@@ -341,8 +325,7 @@ def api_generate():
         reg_price = request.form.get('regular_price', '0')
         off_price = request.form.get('offer_price', '0')
         style_prompt = request.form.get('style_prompt', '')
-        ai_model = request.form.get('ai_model', 'gemini')
-
+        
         if not file:
             return jsonify({'success': False, 'error': 'No image provided'}), 400
 
@@ -352,7 +335,7 @@ def api_generate():
         file.save(raw_path)
 
         cutout = remove_background_ai_precision(raw_path)
-        ai_data = analyze_with_ai(prod_name, reg_price, off_price, style_prompt=style_prompt, ai_model=ai_model)
+        ai_data = analyze_with_ai(prod_name, reg_price, off_price, style_prompt=style_prompt)
         poster_rgb = generate_poster(cutout, ai_data, reg_price, off_price, style_prompt=style_prompt)
         
         poster_filename = f'poster_{uid}.jpg'
