@@ -492,6 +492,10 @@ def api_publish():
                 files={"source": f}
             ).json()
 
+        destinations = data.get('destinations', ['facebook', 'instagram', 'tiktok'])
+        tiktok_token = os.getenv("TIKTOK_ACCESS_TOKEN")
+        tiktok_result = {'status': 'skipped'}
+
         if "id" not in fb_resp:
             return jsonify({'success': False, 'error': f"Facebook error: {fb_resp}"}), 500
 
@@ -537,12 +541,62 @@ def api_publish():
                     ).json()
                     ig_permalink = link_resp.get("permalink", ig_permalink)
 
+        # 3. TikTok Publishing
+        if 'tiktok' in destinations:
+            if tiktok_token:
+                public_media_url = f"https://bioglow-autoposter.onrender.com/static/{os.path.basename(poster_path)}"
+                if is_video:
+                    tt_endpoint = "https://open.tiktokapis.com/v2/post/publish/video/init/"
+                    tt_payload = {
+                        "post_info": {
+                            "title": caption[:2200],
+                            "privacy_level": "PUBLIC_TO_EVERYONE",
+                            "disable_duet": False,
+                            "disable_stitch": False,
+                            "disable_comment": False
+                        },
+                        "source_info": {
+                            "source": "PULL_FROM_URL",
+                            "video_url": public_media_url
+                        }
+                    }
+                else:
+                    tt_endpoint = "https://open.tiktokapis.com/v2/post/publish/content/init/"
+                    tt_payload = {
+                        "post_info": {
+                            "title": caption[:2200],
+                            "privacy_level": "PUBLIC_TO_EVERYONE"
+                        },
+                        "source_info": {
+                            "source": "PULL_FROM_URL",
+                            "photo_cover_index": 1,
+                            "photo_images": [public_media_url]
+                        },
+                        "post_mode": "DIRECT_POST",
+                        "media_type": "PHOTO"
+                    }
+                tt_headers = {
+                    "Authorization": f"Bearer {tiktok_token}",
+                    "Content-Type": "application/json; charset=UTF-8"
+                }
+                try:
+                    tt_resp = requests.post(tt_endpoint, json=tt_payload, headers=tt_headers, timeout=20).json()
+                    tiktok_result = {'status': 'success', 'data': tt_resp}
+                except Exception as t_err:
+                    tiktok_result = {'status': 'error', 'error': str(t_err)}
+            else:
+                tiktok_result = {
+                    'status': 'setup_required',
+                    'message': 'TikTok Developer Access Token প্রয়োজন (developers.tiktok.com এ এক ক্লিকে টোকেন কানেক্ট করুন)'
+                }
+
         return jsonify({
             'success': True,
             'is_scheduled': False,
             'fb_post_id': post_id,
             'fb_url': f'https://www.facebook.com/{PAGE_ID}',
-            'ig_url': ig_permalink
+            'ig_url': ig_permalink,
+            'tiktok': tiktok_result
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500

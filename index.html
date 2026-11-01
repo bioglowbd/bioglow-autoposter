@@ -65,7 +65,7 @@
         <h1 class="font-bold text-lg text-white leading-tight">BioGlow</h1>
         <p class="text-xs text-emerald-400 flex items-center gap-1">
           <span class="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-pulse"></span>
-          Page & Instagram Connected
+          FB, Instagram & TikTok Connected
         </p>
       </div>
     </div>
@@ -229,8 +229,29 @@
 
     <!-- Publishing / Scheduling Options -->
     <div class="border-t border-white/10 pt-3 space-y-3">
+      <!-- Destination Platforms -->
+      <div>
+        <label class="block text-xs text-sky-300 font-semibold uppercase tracking-wider mb-2">
+          কোন কোন প্ল্যাটফর্মে পোস্ট হবে:
+        </label>
+        <div class="grid grid-cols-3 gap-1.5">
+          <label class="flex items-center gap-1.5 p-2 rounded-xl border border-sky-500/30 bg-sky-950/40 cursor-pointer text-xs text-sky-200">
+            <input type="checkbox" id="destFb" checked class="rounded accent-sky-500">
+            <span class="font-bold">Facebook</span>
+          </label>
+          <label class="flex items-center gap-1.5 p-2 rounded-xl border border-pink-500/30 bg-pink-950/40 cursor-pointer text-xs text-pink-200">
+            <input type="checkbox" id="destIg" checked class="rounded accent-pink-500">
+            <span class="font-bold">Instagram</span>
+          </label>
+          <label class="flex items-center gap-1.5 p-2 rounded-xl border border-cyan-500/30 bg-slate-900/60 cursor-pointer text-xs text-cyan-200">
+            <input type="checkbox" id="destTiktok" checked class="rounded accent-cyan-400">
+            <span class="font-bold">TikTok</span>
+          </label>
+        </div>
+      </div>
+
       <label class="block text-xs text-sky-300 font-semibold uppercase tracking-wider">
-        পোস্টিং অপশন নির্বাচন করুন:
+        পোস্টিং সময় নির্বাচন করুন:
       </label>
 
       <div class="grid grid-cols-2 gap-2">
@@ -261,7 +282,7 @@
     <div class="space-y-2">
       <button id="publishBtn"
         class="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white font-extrabold py-3.5 rounded-xl shadow-lg shadow-emerald-500/30 text-sm flex items-center justify-center gap-2 transition active:scale-98">
-        <span id="publishBtnText">🚀 ফেসবুক ও ইনস্টাগ্রামে লাইভ পোস্ট করুন</span>
+        <span id="publishBtnText">🚀 ফেসবুক, ইনস্টাগ্রাম ও টিকটকে পোস্ট করুন</span>
       </button>
       
       <button type="button" class="w-full text-xs text-slate-400 hover:text-white py-2 text-center" onclick="goToStep(1)">
@@ -601,7 +622,12 @@
             poster_path: currentPosterPath,
             caption: captionText.value,
             is_scheduled: isSchedule,
-            schedule_time: scheduleTimestamp
+            schedule_time: scheduleTimestamp,
+            destinations: [
+              ...(document.getElementById('destFb').checked ? ['facebook'] : []),
+              ...(document.getElementById('destIg').checked ? ['instagram'] : []),
+              ...(document.getElementById('destTiktok').checked ? ['tiktok'] : [])
+            ]
           })
         });
         const text = await res.text();
@@ -658,7 +684,7 @@
       toggleScheduleUI(false);
       goToStep(1);
       publishBtn.disabled = false;
-      publishBtn.innerHTML = '<span id="publishBtnText">🚀 ফেসবুক ও ইনস্টাগ্রামে লাইভ পোস্ট করুন</span>';
+      publishBtn.innerHTML = '<span id="publishBtnText">🚀 ফেসবুক, ইনস্টাগ্রাম ও টিকটকে পোস্ট করুন</span>';
     });
   </script>
 
