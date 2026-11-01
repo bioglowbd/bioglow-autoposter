@@ -7,7 +7,7 @@ import requests
 import cv2
 import numpy as np
 import concurrent.futures
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, redirect
 from flask_cors import CORS
 from dotenv import load_dotenv
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
@@ -384,7 +384,42 @@ def generate_poster(product_cutout, ai_data, reg_price, off_price, style_prompt=
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    code = request.args.get('code')
+    tiktok_connected = False
+    if code:
+        token_url = "https://open.tiktokapis.com/v2/oauth/token/"
+        headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+        payload = {
+            'client_key': os.getenv('TIKTOK_CLIENT_KEY', 'awds4olmljijsnpv'),
+            'client_secret': os.getenv('TIKTOK_CLIENT_SECRET', 'FYiRBa2SwCWJpheB1pbPYSI6wJSyaPya'),
+            'code': code,
+            'grant_type': 'authorization_code',
+            'redirect_uri': 'https://bioglow-autoposter.onrender.com/'
+        }
+        try:
+            resp = requests.post(token_url, data=payload, headers=headers, timeout=15).json()
+            if 'data' in resp and 'access_token' in resp['data']:
+                t_data = resp['data']
+                token_file = os.path.join(STATIC_FOLDER, 'tiktok_token.json')
+                with open(token_file, 'w', encoding='utf-8') as tf:
+                    json.dump(t_data, tf)
+                os.environ['TIKTOK_ACCESS_TOKEN'] = t_data['access_token']
+                tiktok_connected = True
+                print("TikTok OAuth Connected Successfully for user:", t_data.get('open_id'))
+        except Exception as oe:
+            print("TikTok OAuth Exchange Exception:", oe)
+
+    # Check if existing token file exists
+    t_file = os.path.join(STATIC_FOLDER, 'tiktok_token.json')
+    if os.path.exists(t_file) and not os.getenv('TIKTOK_ACCESS_TOKEN'):
+        try:
+            with open(t_file, 'r', encoding='utf-8') as tf:
+                saved = json.load(tf)
+                os.environ['TIKTOK_ACCESS_TOKEN'] = saved.get('access_token', '')
+        except:
+            pass
+
+    return render_template('index.html', tiktok_connected=tiktok_connected or bool(os.getenv('TIKTOK_ACCESS_TOKEN')))
 
 @app.route('/api/generate', methods=['POST'])
 def api_generate():
@@ -543,6 +578,15 @@ def api_publish():
 
         # 3. TikTok Publishing
         if 'tiktok' in destinations:
+            if not tiktok_token:
+                t_file = os.path.join(STATIC_FOLDER, 'tiktok_token.json')
+                if os.path.exists(t_file):
+                    try:
+                        with open(t_file, 'r', encoding='utf-8') as tf:
+                            saved = json.load(tf)
+                            tiktok_token = saved.get('access_token')
+                    except Exception as te:
+                        print('Failed to read tiktok_token.json:', te)
             if tiktok_token:
                 public_media_url = f"https://bioglow-autoposter.onrender.com/static/{os.path.basename(poster_path)}"
                 if is_video:
@@ -601,10 +645,7 @@ def api_publish():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    print(f"BioGlow Cloud App Server running on port {port} with Instant Speed & Fast Timeout")
-    app.run(host='0.0.0.0', port=port, debug=False)
+
 
 @app.route('/privacy')
 def privacy_policy():
@@ -638,3 +679,16 @@ def tiktok_dynamic_signature(token=""):
         token = "gqEGuMX4XJ9yzyAtXbI7it1y2ATIu5pQ"
     val = f"tiktok-developers-site-verification={token}"
     return Response(val, mimetype='text/plain', headers={'Content-Length': str(len(val))})
+
+@app.route('/auth/tiktok')
+def auth_tiktok():
+    client_key = os.getenv('TIKTOK_CLIENT_KEY', 'awds4olmljijsnpv')
+    redirect_uri = 'https://bioglow-autoposter.onrender.com/'
+    scope = 'user.info.basic,video.publish,video.upload'
+    url = f"https://www.tiktok.com/v2/auth/authorize/?client_key={client_key}&scope={scope}&response_type=code&redirect_uri={redirect_uri}&state=bioglow"
+    return redirect(url)
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    print(f"BioGlow Cloud App Server running on port {port} with Instant Speed and Fast Timeout")
+    app.run(host='0.0.0.0', port=port, debug=False)

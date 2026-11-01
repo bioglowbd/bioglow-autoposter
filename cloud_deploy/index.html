@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>BioGlow AutoPoster Mobile</title>
+  <link rel="manifest" href="/static/manifest.json">
+  <meta name="theme-color" content="#102D54">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="icon" type="image/png" href="/static/icon-192.png">
+  <meta name="tiktok-developers-site-verification" content="bTPoq6d4E8kpcxGwjkCsvXyd1haTjhNi">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      background: linear-gradient(135deg, #071322 0%, #0d223a 100%);
+      color: #f1f5f9;
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      min-height: 100vh;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .glass {
+      background: rgba(16, 45, 84, 0.45);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .input-field {
+      background: rgba(10, 25, 47, 0.7);
+      border: 1px solid rgba(100, 160, 220, 0.25);
+      color: #fff;
+    }
+    .input-field:focus {
+      border-color: #38bdf8;
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+    }
+    .step-active {
+      background: #0284c7;
+      color: #fff;
+      font-weight: bold;
+    }
+    .step-inactive {
+      background: rgba(255, 255, 255, 0.08);
+      color: #94a3b8;
+    }
+    .chip {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #cbd5e1;
+      cursor: pointer;
+    }
+    .chip:hover {
+      background: rgba(56, 189, 248, 0.2);
+      border-color: #38bdf8;
+      color: #fff;
+    }
+  </style>
+</head>
+<body class="p-3 pb-24 max-w-md mx-auto">
+
+  <!-- Header -->
+  <header class="flex items-center justify-between py-3 px-4 glass rounded-2xl mb-3 shadow-lg">
+    <div class="flex items-center space-x-3">
+      <img src="/static/icon-192.png" alt="BioGlow" class="w-10 h-10 rounded-xl shadow border border-white/20">
+      <div>
+        <h1 class="font-bold text-lg text-white leading-tight">BioGlow</h1>
+        <p class="text-xs text-emerald-400 flex items-center gap-1">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-pulse"></span>
+          FB, Instagram & TikTok Connected
+        </p>
+      </div>
+    </div>
+    <button id="installBtn" class="hidden text-xs bg-sky-500 hover:bg-sky-400 text-white font-semibold px-3 py-1.5 rounded-lg shadow">
+      📲 Install App
+    </button>
+  </header>
+
+  <!-- Step Navigation (Back / Forward) -->
+  <div class="flex items-center justify-between mb-4 px-1 gap-2">
+    <button id="navStep1Btn" class="flex-1 py-1.5 px-2 rounded-xl text-xs text-center transition step-active" onclick="goToStep(1)">
+      ১. তথ্য ও ডিজাইন
+    </button>
+    <span class="text-slate-500 text-xs">➔</span>
+    <button id="navStep2Btn" class="flex-1 py-1.5 px-2 rounded-xl text-xs text-center transition step-inactive" onclick="goToStep(2)">
+      ২. প্রিভিউ ও শিডিউল
+    </button>
+  </div>
+
+  <!-- STEP 1: Input Form -->
+  <div id="step1Box" class="glass rounded-2xl p-4 mb-4 shadow-xl">
+    <div class="flex justify-between items-center mb-3">
+      <h2 class="text-sm font-semibold text-sky-300 uppercase tracking-wider">
+        প্রোডাক্ট ও ডিজাইন কমান্ড
+      </h2>
+      <button type="button" id="forwardBtn" class="hidden text-xs bg-sky-600/40 hover:bg-sky-600 text-sky-200 px-3 py-1 rounded-lg border border-sky-400/30 flex items-center gap-1" onclick="goToStep(2)">
+        <span>প্রিভিউতে যান</span>
+        <span>➡️</span>
+      </button>
+    </div>
+
+    <form id="posterForm" class="space-y-3">
+      <div>
+        <label class="block text-xs text-slate-300 mb-1 font-medium">প্রোডাক্টের নাম *</label>
+        <input type="text" id="prodName" required placeholder="e.g. Cetaphil Moisturising Lotion 236ml"
+          class="w-full input-field rounded-xl px-3 py-2.5 text-sm">
+      </div>
+
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="block text-xs text-slate-300 mb-1 font-medium">আসল দাম (TK) *</label>
+          <input type="number" id="regPrice" required placeholder="4500"
+            class="w-full input-field rounded-xl px-3 py-2.5 text-sm">
+        </div>
+        <div>
+          <label class="block text-xs text-slate-300 mb-1 font-medium">অফার দাম (TK) *</label>
+          <input type="number" id="offPrice" required placeholder="3499"
+            class="w-full input-field rounded-xl px-3 py-2.5 text-sm font-bold text-emerald-400">
+        </div>
+      </div>
+
+      <!-- Post Mode Selector -->
+      <div class="bg-slate-900/60 p-2.5 rounded-xl border border-white/10 mb-2">
+        <label class="block text-[11px] text-slate-300 font-medium mb-1.5">পোস্টের মোড নির্বাচন করুন:</label>
+        <div class="grid grid-cols-2 gap-2">
+          <label id="modePosterLabel" class="flex items-center gap-1.5 text-xs text-sky-200 p-2 rounded-lg bg-sky-950/60 border border-sky-400/40 cursor-pointer">
+            <input type="radio" name="post_mode" value="poster" checked onchange="switchPostMode('poster')">
+            <span class="font-medium">🎨 AI ব্র্যান্ডেড পোস্টার</span>
+          </label>
+          <label id="modeDirectLabel" class="flex items-center gap-1.5 text-xs text-slate-300 p-2 rounded-lg bg-slate-800/40 border border-white/10 cursor-pointer">
+            <input type="radio" name="post_mode" value="direct" onchange="switchPostMode('direct')">
+            <span class="font-medium">📸 আসল ছবি/ভিডিও</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Poster Style Prompt / Command Box (Custom Prompt) -->
+      <div id="stylePromptBox">
+        <div class="flex justify-between items-center mb-1">
+          <label class="block text-xs text-sky-300 font-medium">🎨 পোস্টার স্টাইল ও ব্যাকগ্রাউন্ড কমান্ড (Prompt):</label>
+          <span class="text-[10px] text-slate-400">নিজের ভাষায় লিখুন</span>
+        </div>
+        <textarea id="stylePrompt" rows="2" placeholder="e.g. Clean modern luxury studio, or Morning sun water reflections, or Holding in hand UGC mood..."
+          class="w-full input-field rounded-xl p-2.5 text-xs"></textarea>
+        
+        <!-- Style quick presets chips -->
+        <div class="flex flex-wrap gap-1.5 mt-1.5">
+          <span class="chip text-[10px] px-2 py-0.5 rounded-md" onclick="setStylePrompt('Clean modern luxury studio backdrop with soft ambient lighting')">✨ Clean Studio</span>
+          <span class="chip text-[10px] px-2 py-0.5 rounded-md" onclick="setStylePrompt('Luxury round white marble podium in a soothing botanical spa')">🏛️ Marble Podium</span>
+          <span class="chip text-[10px] px-2 py-0.5 rounded-md" onclick="setStylePrompt('Crystal clear water droplets, refreshing hydrating splash theme')">💧 Hydrating Splash</span>
+          <span class="chip text-[10px] px-2 py-0.5 rounded-md" onclick="setStylePrompt('Holding product in hand, real lifestyle authentic UGC aesthetic')">📸 Hand UGC Look</span>
+        </div>
+      </div>
+
+      <!-- Image / Video Upload Area -->
+      <div>
+        <div class="flex justify-between items-center mb-1">
+          <label class="block text-xs text-slate-300 font-medium">ছবি বা ভিডিও নির্বাচন করুন *</label>
+          <span class="text-[10px] text-emerald-400">ছবি বা রিলস ভিডিও</span>
+        </div>
+
+        <!-- Camera & Gallery Quick Action Buttons -->
+        <div class="grid grid-cols-2 gap-2 mb-2">
+          <button type="button" onclick="document.getElementById('cameraInput').click()"
+            class="bg-sky-600/30 hover:bg-sky-600/50 border border-sky-400/40 text-sky-200 py-2.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition active:scale-95 shadow-sm">
+            <span class="text-base">📸</span>
+            <span>ক্যামেরা দিয়ে তুলুন</span>
+          </button>
+          <button type="button" onclick="document.getElementById('galleryInput').click()"
+            class="bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-400/40 text-indigo-200 py-2.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition active:scale-95 shadow-sm">
+            <span class="text-base">📁</span>
+            <span>গ্যালারি / ভিডিও</span>
+          </button>
+        </div>
+
+        <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden">
+        <input type="file" id="galleryInput" accept="image/*,video/*" class="hidden">
+
+        <div id="dropZone" class="border-2 border-dashed border-sky-400/40 rounded-xl p-3 text-center cursor-pointer hover:border-sky-400 transition bg-sky-950/20">
+          <div id="uploadPrompt">
+            <p class="text-xs text-slate-300 font-medium">অথবা এখানে ট্যাপ করে যেকোনো ফাইল বেছে নিন</p>
+            <p class="text-[10px] text-slate-400 mt-0.5">সাপোর্ট: JPG, PNG, WEBP, MP4 ভিডিও</p>
+          </div>
+          <div id="previewArea" class="hidden">
+            <img id="imgThumbnail" class="max-h-36 mx-auto rounded-lg shadow object-contain">
+            <video id="videoThumbnail" class="max-h-36 mx-auto rounded-lg shadow hidden" controls></video>
+            <p class="text-[11px] text-emerald-400 mt-2 font-medium" id="mediaSelectedText">ফাইল সিলেক্ট হয়েছে (পরিবর্তন করতে ট্যাপ করুন)</p>
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" id="generateBtn"
+        class="w-full bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-bold py-3 rounded-xl shadow-lg shadow-sky-500/20 text-sm flex items-center justify-center gap-2 transition active:scale-98">
+        <span>⚡ পোস্টার ও ক্যাপশন তৈরি করুন</span>
+      </button>
+    </form>
+  </div>
+
+  <!-- Loading State -->
+  <div id="loadingBox" class="hidden glass rounded-2xl p-6 text-center shadow-xl mb-4">
+    <div class="inline-block animate-spin w-10 h-10 border-4 border-sky-400 border-t-transparent rounded-full mb-3"></div>
+    <h3 class="font-bold text-base text-white">AI পোস্টার তৈরি হচ্ছে...</h3>
+    <p class="text-xs text-slate-300 mt-1">আপনার স্টাইল কমান্ড অনুযায়ী ব্যাকগ্রাউন্ড, লোগো এবং সেলস কপি রেডি হচ্ছে</p>
+  </div>
+
+  <!-- STEP 2: Preview & Schedule/Publish -->
+  <div id="step2Box" class="hidden glass rounded-2xl p-4 shadow-xl mb-4 space-y-4">
+    <div class="flex items-center justify-between">
+      <button type="button" class="text-xs bg-slate-700/80 hover:bg-slate-700 text-sky-200 px-3 py-1.5 rounded-lg border border-white/10 flex items-center gap-1" onclick="goToStep(1)">
+        <span>⬅️</span>
+        <span>Back (এডিট করুন)</span>
+      </button>
+      <span class="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/30 font-semibold">প্রিভিউ রেডি</span>
+    </div>
+
+    <!-- Media Preview (Image or Video) -->
+    <div class="rounded-xl overflow-hidden shadow-2xl border border-white/20 bg-black/40">
+      <img id="posterPreview" class="w-full aspect-square object-contain" alt="Generated Poster">
+      <video id="videoPreview" class="w-full aspect-square object-contain hidden" controls autoplay muted loop></video>
+    </div>
+
+    <!-- Caption Box -->
+    <div>
+      <div class="flex justify-between items-center mb-1">
+        <label class="text-xs text-slate-300 font-medium">ক্যাপশন (প্রয়োজনে এডিট করতে পারেন):</label>
+        <button id="copyCaptionBtn" class="text-[11px] text-sky-400 hover:text-sky-300">📋 কপি করুন</button>
+      </div>
+      <textarea id="captionText" rows="5"
+        class="w-full input-field rounded-xl p-3 text-xs leading-relaxed"></textarea>
+    </div>
+
+    <!-- Publishing / Scheduling Options -->
+    <div class="border-t border-white/10 pt-3 space-y-3">
+      <!-- Destination Platforms -->
+      <div>
+        <label class="block text-xs text-sky-300 font-semibold uppercase tracking-wider mb-2">
+          কোন কোন প্ল্যাটফর্মে পোস্ট হবে:
+        </label>
+        <div class="grid grid-cols-3 gap-1.5">
+          <label class="flex items-center gap-1.5 p-2 rounded-xl border border-sky-500/30 bg-sky-950/40 cursor-pointer text-xs text-sky-200">
+            <input type="checkbox" id="destFb" checked class="rounded accent-sky-500">
+            <span class="font-bold">Facebook</span>
+          </label>
+          <label class="flex items-center gap-1.5 p-2 rounded-xl border border-pink-500/30 bg-pink-950/40 cursor-pointer text-xs text-pink-200">
+            <input type="checkbox" id="destIg" checked class="rounded accent-pink-500">
+            <span class="font-bold">Instagram</span>
+          </label>
+          <label class="flex items-center gap-1.5 p-2 rounded-xl border border-cyan-500/30 bg-slate-900/60 cursor-pointer text-xs text-cyan-200">
+            <input type="checkbox" id="destTiktok" checked class="rounded accent-cyan-400">
+            <span class="font-bold">TikTok</span>
+          </label>
+        </div>
+      </div>
+
+      <label class="block text-xs text-sky-300 font-semibold uppercase tracking-wider">
+        পোস্টিং সময় নির্বাচন করুন:
+      </label>
+
+      <div class="grid grid-cols-2 gap-2">
+        <label class="flex items-center gap-2 p-2.5 rounded-xl border border-white/10 cursor-pointer bg-slate-800/40 hover:bg-slate-800/70">
+          <input type="radio" name="publishMode" value="instant" checked onchange="toggleScheduleUI(false)" class="text-sky-500">
+          <span class="text-xs text-white font-medium">⚡ এখনই পোস্ট</span>
+        </label>
+        <label class="flex items-center gap-2 p-2.5 rounded-xl border border-white/10 cursor-pointer bg-slate-800/40 hover:bg-slate-800/70">
+          <input type="radio" name="publishMode" value="schedule" onchange="toggleScheduleUI(true)" class="text-sky-500">
+          <span class="text-xs text-white font-medium">⏰ শিডিউল করুন</span>
+        </label>
+      </div>
+
+      <!-- Schedule Time Picker -->
+      <div id="scheduleTimeBox" class="hidden p-3 rounded-xl border border-sky-400/30 bg-sky-950/30 space-y-2">
+        <label class="block text-xs text-sky-200 font-medium">
+          📅 পোস্ট করার তারিখ ও সময় দিন:
+        </label>
+        <input type="datetime-local" id="scheduleDateTime"
+          class="w-full input-field rounded-xl px-3 py-2 text-xs">
+        <p class="text-[10px] text-slate-400">
+          ℹ️ ফেসবুক পলিসি অনুযায়ী বর্তমান সময়ের অন্তত ১০ মিনিট পরের সময় দিতে হবে।
+        </p>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="space-y-2">
+      <button id="publishBtn"
+        class="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white font-extrabold py-3.5 rounded-xl shadow-lg shadow-emerald-500/30 text-sm flex items-center justify-center gap-2 transition active:scale-98">
+        <span id="publishBtnText">🚀 ফেসবুক, ইনস্টাগ্রাম ও টিকটকে পোস্ট করুন</span>
+      </button>
+      
+      <button type="button" class="w-full text-xs text-slate-400 hover:text-white py-2 text-center" onclick="goToStep(1)">
+        ⬅️ আগের পেজে ফিরে যান (অন্য প্রোডাক্ট বা ছবি পরিবর্তন করতে)
+      </button>
+    </div>
+  </div>
+
+  <!-- STEP 3: Success Modal -->
+  <div id="successBox" class="hidden glass rounded-2xl p-5 text-center shadow-2xl mb-4 border border-emerald-500/40 bg-emerald-950/30">
+    <div class="w-12 h-12 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-2 text-2xl">
+      ✓
+    </div>
+    <h3 id="successHeading" class="font-extrabold text-lg text-white">সফলভাবে সম্পন্ন হয়েছে! 🎉</h3>
+    <p id="successMessage" class="text-xs text-slate-300 mt-1 mb-4">আপনার পোস্টটি সফলভাবে প্রসেস করা হয়েছে।</p>
+
+    <div id="successLinks" class="space-y-2">
+      <a id="fbLink" href="#" target="_blank"
+        class="block w-full bg-blue-600/80 hover:bg-blue-600 text-white font-semibold py-2.5 rounded-xl text-xs shadow transition">
+        🔗 Facebook Page পোস্ট দেখুন
+      </a>
+      <a id="igLink" href="#" target="_blank"
+        class="block w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:opacity-90 text-white font-semibold py-2.5 rounded-xl text-xs shadow transition">
+        📷 Instagram পোস্ট দেখুন
+      </a>
+    </div>
+
+    <button id="newPostBtn" class="mt-4 text-xs text-sky-400 hover:text-sky-300 underline font-medium">
+      + আরেকটি নতুন পোস্ট তৈরি করুন
+    </button>
+  </div>
+
+  <script>
+    // PWA Service Worker Registration
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/static/service-worker.js');
+    }
+
+    function setStylePrompt(text) {
+      document.getElementById('stylePrompt').value = text;
+    }
+
+    function toggleScheduleUI(isSchedule) {
+      const box = document.getElementById('scheduleTimeBox');
+      const btnText = document.getElementById('publishBtnText');
+      if (isSchedule) {
+        box.classList.remove('hidden');
+        btnText.innerText = '⏰ নির্ধারিত সময়ে শিডিউল করুন';
+        // Set default time to now + 30 minutes
+        const d = new Date();
+        d.setMinutes(d.getMinutes() + 30);
+        document.getElementById('scheduleDateTime').value = d.toISOString().slice(0, 16);
+      } else {
+        box.classList.add('hidden');
+        btnText.innerText = '🚀 ফেসবুক ও ইনস্টাগ্রামে লাইভ পোস্ট করুন';
+      }
+    }
+
+    // Step Navigation logic (Back / Forward)
+    let hasGenerated = false;
+
+    function goToStep(step) {
+      const step1Box = document.getElementById('step1Box');
+      const step2Box = document.getElementById('step2Box');
+      const nav1 = document.getElementById('navStep1Btn');
+      const nav2 = document.getElementById('navStep2Btn');
+      const forwardBtn = document.getElementById('forwardBtn');
+
+      if (step === 1) {
+        step1Box.classList.remove('hidden');
+        step2Box.classList.add('hidden');
+        nav1.className = 'flex-1 py-1.5 px-2 rounded-xl text-xs text-center transition step-active';
+        nav2.className = 'flex-1 py-1.5 px-2 rounded-xl text-xs text-center transition step-inactive';
+        if (hasGenerated) {
+          forwardBtn.classList.remove('hidden');
+        }
+      } else if (step === 2) {
+        if (!hasGenerated) {
+          alert('অনুগ্রহ করে প্রথমে পোস্টার তৈরি করুন!');
+          return;
+        }
+        step1Box.classList.add('hidden');
+        step2Box.classList.remove('hidden');
+        nav1.className = 'flex-1 py-1.5 px-2 rounded-xl text-xs text-center transition step-inactive';
+        nav2.className = 'flex-1 py-1.5 px-2 rounded-xl text-xs text-center transition step-active';
+        step2Box.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+
+    // PWA Install Prompt Handling
+    let deferredPrompt;
+    const installBtn = document.getElementById('installBtn');
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      installBtn.classList.remove('hidden');
+    });
+
+    installBtn.addEventListener('click', async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+          installBtn.classList.add('hidden');
+        }
+        deferredPrompt = null;
+      }
+    });
+
+    // Media Handling (Camera + Gallery + Video)
+    let selectedMediaFile = null;
+    let currentPostMode = 'poster';
+
+    function switchPostMode(mode) {
+      currentPostMode = mode;
+      const styleBox = document.getElementById('stylePromptBox');
+      const pLabel = document.getElementById('modePosterLabel');
+      const dLabel = document.getElementById('modeDirectLabel');
+      const btnSpan = document.querySelector('#generateBtn span');
+
+      if (mode === 'direct') {
+        styleBox.classList.add('hidden');
+        pLabel.className = 'flex items-center gap-1.5 text-xs text-slate-300 p-2 rounded-lg bg-slate-800/40 border border-white/10 cursor-pointer';
+        dLabel.className = 'flex items-center gap-1.5 text-xs text-sky-200 p-2 rounded-lg bg-sky-950/60 border border-sky-400/40 cursor-pointer';
+        btnSpan.innerText = '⚡ ক্যাপশন তৈরি ও রিভিউ করুন';
+      } else {
+        styleBox.classList.remove('hidden');
+        pLabel.className = 'flex items-center gap-1.5 text-xs text-sky-200 p-2 rounded-lg bg-sky-950/60 border border-sky-400/40 cursor-pointer';
+        dLabel.className = 'flex items-center gap-1.5 text-xs text-slate-300 p-2 rounded-lg bg-slate-800/40 border border-white/10 cursor-pointer';
+        btnSpan.innerText = '⚡ পোস্টার ও ক্যাপশন তৈরি করুন';
+      }
+    }
+
+    const dropZone = document.getElementById('dropZone');
+    const cameraInput = document.getElementById('cameraInput');
+    const galleryInput = document.getElementById('galleryInput');
+    const uploadPrompt = document.getElementById('uploadPrompt');
+    const previewArea = document.getElementById('previewArea');
+    const imgThumbnail = document.getElementById('imgThumbnail');
+    const videoThumbnail = document.getElementById('videoThumbnail');
+    const mediaSelectedText = document.getElementById('mediaSelectedText');
+
+    dropZone.addEventListener('click', () => galleryInput.click());
+
+    function handleFileSelection(file) {
+      if (!file) return;
+      selectedMediaFile = file;
+      uploadPrompt.classList.add('hidden');
+      previewArea.classList.remove('hidden');
+
+      if (file.type.startsWith('video/')) {
+        imgThumbnail.classList.add('hidden');
+        videoThumbnail.classList.remove('hidden');
+        videoThumbnail.src = URL.createObjectURL(file);
+        mediaSelectedText.innerText = '🎬 ভিডিও সিলেক্ট হয়েছে (সরাসরি আসল ভিডিও পোস্ট হবে)';
+        // Automatically switch to direct mode for videos
+        document.querySelector('input[name="post_mode"][value="direct"]').checked = true;
+        switchPostMode('direct');
+      } else {
+        videoThumbnail.classList.add('hidden');
+        imgThumbnail.classList.remove('hidden');
+        mediaSelectedText.innerText = '📸 ছবি সিলেক্ট হয়েছে (পরিবর্তন করতে ট্যাপ করুন)';
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          imgThumbnail.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    cameraInput.addEventListener('change', () => handleFileSelection(cameraInput.files[0]));
+    galleryInput.addEventListener('change', () => handleFileSelection(galleryInput.files[0]));
+
+    // Form Submit (Generate)
+    const form = document.getElementById('posterForm');
+    const loadingBox = document.getElementById('loadingBox');
+    const step1Box = document.getElementById('step1Box');
+    const step2Box = document.getElementById('step2Box');
+    const posterPreview = document.getElementById('posterPreview');
+    const captionText = document.getElementById('captionText');
+    let currentPosterPath = '';
+
+    async function compressImageForFastUpload(file, maxDimension = 1200, quality = 0.85) {
+      if (!file || !file.type.startsWith('image/')) return file;
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            let width = img.width;
+            let height = img.height;
+            if (width > maxDimension || height > maxDimension) {
+              if (width > height) {
+                height = Math.round((height * maxDimension) / width);
+                width = maxDimension;
+              } else {
+                width = Math.round((width * maxDimension) / height);
+                height = maxDimension;
+              }
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            canvas.toBlob((blob) => {
+              if (!blob) return resolve(file);
+              const optimized = new File([blob], 'product.jpg', {
+                type: 'image/jpeg',
+                lastModified: Date.now()
+              });
+              resolve(optimized);
+            }, 'image/jpeg', quality);
+          };
+          img.onerror = () => resolve(file);
+          img.src = e.target.result;
+        };
+        reader.onerror = () => resolve(file);
+        reader.readAsDataURL(file);
+      });
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const file = selectedMediaFile;
+      if (!file) {
+        alert('অনুগ্রহ করে ক্যামেরা দিয়ে ছবি তুলুন বা গ্যালারি থেকে সিলেক্ট করুন!');
+        return;
+      }
+
+      step1Box.classList.add('hidden');
+      loadingBox.classList.remove('hidden');
+
+      // Superfast in-browser compression for images (leaves videos untouched)
+      let uploadPayload = file;
+      if (file.type.startsWith('image/')) {
+        uploadPayload = await compressImageForFastUpload(file);
+      }
+
+      const formData = new FormData();
+      formData.append('image', uploadPayload);
+      formData.append('product_name', document.getElementById('prodName').value);
+      formData.append('regular_price', document.getElementById('regPrice').value);
+      formData.append('offer_price', document.getElementById('offPrice').value);
+      formData.append('style_prompt', document.getElementById('stylePrompt').value);
+      formData.append('mode', currentPostMode);
+      try {
+        const res = await fetch('/api/generate', {
+          method: 'POST',
+          body: formData
+        });
+        const text = await res.text();
+        loadingBox.classList.add('hidden');
+        
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch (jsonErr) {
+          alert('সার্ভার রেসপন্স এরর (' + res.status + '): ' + (text ? text.slice(0, 100) : 'সার্ভার স্লিপে থাকলে আরেকবার ট্রাই করুন'));
+          step1Box.classList.remove('hidden');
+          return;
+        }
+
+        if (data.success) {
+          hasGenerated = true;
+          currentPosterPath = data.poster_path;
+          const vPreview = document.getElementById('videoPreview');
+          if (data.is_video) {
+            posterPreview.classList.add('hidden');
+            vPreview.classList.remove('hidden');
+            vPreview.src = data.poster_url;
+          } else {
+            vPreview.classList.add('hidden');
+            posterPreview.classList.remove('hidden');
+            posterPreview.src = data.poster_url + '?t=' + Date.now();
+          }
+          captionText.value = data.caption;
+          goToStep(2);
+        } else {
+          alert('ত্রুটি: ' + (data.error || 'পোস্টার তৈরি করা যায়নি'));
+          step1Box.classList.remove('hidden');
+        }
+      } catch (err) {
+        loadingBox.classList.add('hidden');
+        step1Box.classList.remove('hidden');
+        alert('কানেকশন সমস্যা: ' + err.message);
+      }
+    });
+
+    // Copy Caption
+    document.getElementById('copyCaptionBtn').addEventListener('click', () => {
+      navigator.clipboard.writeText(captionText.value);
+      alert('ক্যাপশন কপি করা হয়েছে!');
+    });
+
+    // Publish / Schedule Button
+    const publishBtn = document.getElementById('publishBtn');
+    const successBox = document.getElementById('successBox');
+
+    publishBtn.addEventListener('click', async () => {
+      const mode = document.querySelector('input[name="publishMode"]:checked').value;
+      const isSchedule = (mode === 'schedule');
+      let scheduleTimestamp = null;
+
+      if (isSchedule) {
+        const dtVal = document.getElementById('scheduleDateTime').value;
+        if (!dtVal) {
+          alert('অনুগ্রহ করে শিডিউলের তারিখ ও সময় নির্বাচন করুন!');
+          return;
+        }
+        const selectedDate = new Date(dtVal);
+        const now = new Date();
+        const diffMinutes = (selectedDate - now) / (1000 * 60);
+        if (diffMinutes < 10) {
+          alert('ফেসবুক পলিসি অনুযায়ী বর্তমান সময়ের অন্তত ১০ মিনিট পরের সময় দিতে হবে!');
+          return;
+        }
+        scheduleTimestamp = Math.floor(selectedDate.getTime() / 1000);
+      }
+
+      const confirmMsg = isSchedule 
+        ? 'আপনি কি নির্ধারিত সময়ে পোস্টটি শিডিউল করতে চান?' 
+        : 'আপনি কি নিশ্চিত যে পোস্টটি এখনই লাইভ করতে চান?';
+
+      if (!confirm(confirmMsg)) {
+        return;
+      }
+
+      publishBtn.disabled = true;
+      publishBtn.innerHTML = '<span class="inline-block animate-spin mr-2">🔄</span> প্রসেসিং হচ্ছে...';
+
+      try {
+        const res = await fetch('/api/publish', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            poster_path: currentPosterPath,
+            caption: captionText.value,
+            is_scheduled: isSchedule,
+            schedule_time: scheduleTimestamp,
+            destinations: [
+              ...(document.getElementById('destFb').checked ? ['facebook'] : []),
+              ...(document.getElementById('destIg').checked ? ['instagram'] : []),
+              ...(document.getElementById('destTiktok').checked ? ['tiktok'] : [])
+            ]
+          })
+        });
+        const text = await res.text();
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch (jsonErr) {
+          alert('সার্ভার রেসপন্স এরর। অনুগ্রহ করে আবার চেষ্টা করুন।');
+          publishBtn.disabled = false;
+          publishBtn.innerHTML = '<span>🚀 ফেসবুক ও ইনস্টাগ্রামে লাইভ পোস্ট করুন</span>';
+          return;
+        }
+
+        if (data.success) {
+          step2Box.classList.add('hidden');
+          const heading = document.getElementById('successHeading');
+          const msg = document.getElementById('successMessage');
+          const links = document.getElementById('successLinks');
+
+          if (data.is_scheduled) {
+            heading.innerText = 'সফলভাবে শিডিউল করা হয়েছে! ⏰';
+            msg.innerText = `পোস্টটি নির্ধারিত সময়ে (${document.getElementById('scheduleDateTime').value}) স্বয়ংক্রিয়ভাবে পাবলিশ হয়ে যাবে।`;
+            links.classList.add('hidden');
+          } else {
+            heading.innerText = 'সফলভাবে পোস্ট পাবলিশ হয়েছে! 🎉';
+            msg.innerText = 'আপনার BioGlow পেইজ এবং ইনস্টাগ্রামে এখন পোস্টটি লাইভ দেখতে পারেন:';
+            document.getElementById('fbLink').href = data.fb_url || 'https://www.facebook.com/1349460764922653';
+            document.getElementById('igLink').href = data.ig_url || 'https://www.instagram.com/bioglowbd/';
+            links.classList.remove('hidden');
+          }
+
+          successBox.classList.remove('hidden');
+          successBox.scrollIntoView({ behavior: 'smooth' });
+        } else {
+          alert('পোস্ট করতে সমস্যা হয়েছে: ' + (data.error || 'অজানা ত্রুটি'));
+          publishBtn.disabled = false;
+          publishBtn.innerHTML = '<span>🚀 ফেসবুক ও ইনস্টাগ্রামে লাইভ পোস্ট করুন</span>';
+        }
+      } catch (err) {
+        alert('কানেকশন সমস্যা: ' + err.message);
+        publishBtn.disabled = false;
+        publishBtn.innerHTML = '<span>🚀 ফেসবুক ও ইনস্টাগ্রামে লাইভ পোস্ট করুন</span>';
+      }
+    });
+
+    // New Post Reset
+    document.getElementById('newPostBtn').addEventListener('click', () => {
+      successBox.classList.add('hidden');
+      form.reset();
+      hasGenerated = false;
+      document.getElementById('forwardBtn').classList.add('hidden');
+      uploadPrompt.classList.remove('hidden');
+      previewArea.classList.add('hidden');
+      toggleScheduleUI(false);
+      goToStep(1);
+      publishBtn.disabled = false;
+      publishBtn.innerHTML = '<span id="publishBtnText">🚀 ফেসবুক, ইনস্টাগ্রাম ও টিকটকে পোস্ট করুন</span>';
+    });
+  </script>
+
+</body>
+</html>
