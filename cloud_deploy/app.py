@@ -390,8 +390,8 @@ def index():
         token_url = "https://open.tiktokapis.com/v2/oauth/token/"
         headers = {'Content-Type': 'application/x-www-form-urlencoded'}
         payload = {
-            'client_key': os.getenv('TIKTOK_CLIENT_KEY', 'awds4olmljijsnpv'),
-            'client_secret': os.getenv('TIKTOK_CLIENT_SECRET', 'FYiRBa2SwCWJpheB1pbPYSI6wJSyaPya'),
+            'client_key': os.getenv('TIKTOK_CLIENT_KEY', 'sbaw64xbwcixi38uxm'),
+            'client_secret': os.getenv('TIKTOK_CLIENT_SECRET', '4sCb8pj9oHrkfR37qO73UoHqo3ToT73G'),
             'code': code,
             'grant_type': 'authorization_code',
             'redirect_uri': 'https://bioglow-autoposter.onrender.com/'
@@ -682,7 +682,7 @@ def tiktok_dynamic_signature(token=""):
 
 @app.route('/auth/tiktok')
 def auth_tiktok():
-    client_key = os.getenv('TIKTOK_CLIENT_KEY', 'awds4olmljijsnpv')
+    client_key = os.getenv('TIKTOK_CLIENT_KEY', 'sbaw64xbwcixi38uxm')
     redirect_uri = 'https://bioglow-autoposter.onrender.com/'
     scope = 'user.info.basic,video.publish,video.upload'
     url = f"https://www.tiktok.com/v2/auth/authorize/?client_key={client_key}&scope={scope}&response_type=code&redirect_uri={redirect_uri}&state=bioglow"
