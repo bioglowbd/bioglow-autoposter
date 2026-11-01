@@ -546,28 +546,44 @@ def api_publish():
                 'fb_post_id': post_id
             })
 
-        # 2. Instagram (Instant)
-        p_info = requests.get(
-            f"https://graph.facebook.com/v21.0/{fb_id}",
-            params={"fields": "images", "access_token": PAGE_TOKEN}
-        ).json()
-
+        # 2. Instagram (Photo or Reels Video)
         ig_permalink = "https://www.instagram.com/bioglowbd/"
-        if "images" in p_info and len(p_info["images"]) > 0:
-            cdn_url = p_info["images"][0]["source"]
+        public_media_url = f"https://bioglow-autoposter.onrender.com/static/{os.path.basename(poster_path)}"
+
+        if is_video:
+            # Instagram Reels for Video
+            print(f"Uploading Instagram Reels from {public_media_url}...")
             cont_resp = requests.post(
                 f"https://graph.facebook.com/v21.0/{IG_ID}/media",
-                data={"image_url": cdn_url, "caption": caption, "access_token": PAGE_TOKEN}
+                data={
+                    "media_type": "REELS",
+                    "video_url": public_media_url,
+                    "caption": caption,
+                    "access_token": PAGE_TOKEN
+                }
             ).json()
-            
+            print("Instagram Reels Container Resp:", cont_resp)
             creation_id = cont_resp.get("id")
             if creation_id:
-                time.sleep(3)
+                for attempt in range(15):
+                    time.sleep(3)
+                    stat_resp = requests.get(
+                        f"https://graph.facebook.com/v21.0/{creation_id}",
+                        params={"fields": "status_code", "access_token": PAGE_TOKEN}
+                    ).json()
+                    status = stat_resp.get("status_code")
+                    print(f"Instagram Reels processing ({attempt+1}/15): {status}")
+                    if status == "FINISHED":
+                        break
+                    elif status == "ERROR":
+                        print("Instagram Reels Processing Error:", stat_resp)
+                        break
+
                 pub_resp = requests.post(
                     f"https://graph.facebook.com/v21.0/{IG_ID}/media_publish",
                     data={"creation_id": creation_id, "access_token": PAGE_TOKEN}
                 ).json()
-                
+                print("Instagram Reels Publish Resp:", pub_resp)
                 media_id = pub_resp.get("id")
                 if media_id:
                     link_resp = requests.get(
@@ -575,6 +591,32 @@ def api_publish():
                         params={"fields": "permalink", "access_token": PAGE_TOKEN}
                     ).json()
                     ig_permalink = link_resp.get("permalink", ig_permalink)
+        else:
+            # Instagram Photo Post
+            p_info = requests.get(
+                f"https://graph.facebook.com/v21.0/{fb_id}",
+                params={"fields": "images", "access_token": PAGE_TOKEN}
+            ).json()
+            if "images" in p_info and len(p_info["images"]) > 0:
+                cdn_url = p_info["images"][0]["source"]
+                cont_resp = requests.post(
+                    f"https://graph.facebook.com/v21.0/{IG_ID}/media",
+                    data={"image_url": cdn_url, "caption": caption, "access_token": PAGE_TOKEN}
+                ).json()
+                creation_id = cont_resp.get("id")
+                if creation_id:
+                    time.sleep(3)
+                    pub_resp = requests.post(
+                        f"https://graph.facebook.com/v21.0/{IG_ID}/media_publish",
+                        data={"creation_id": creation_id, "access_token": PAGE_TOKEN}
+                    ).json()
+                    media_id = pub_resp.get("id")
+                    if media_id:
+                        link_resp = requests.get(
+                            f"https://graph.facebook.com/v21.0/{media_id}",
+                            params={"fields": "permalink", "access_token": PAGE_TOKEN}
+                        ).json()
+                        ig_permalink = link_resp.get("permalink", ig_permalink)
 
         # 3. TikTok Publishing
         if 'tiktok' in destinations:
@@ -589,12 +631,18 @@ def api_publish():
                         print('Failed to read tiktok_token.json:', te)
             if tiktok_token:
                 public_media_url = f"https://bioglow-autoposter.onrender.com/static/{os.path.basename(poster_path)}"
+                first_line = caption.split('\n')[0].strip() if caption else 'BioGlow Skincare'
+                tt_headers = {
+                    "Authorization": f"Bearer {tiktok_token}",
+                    "Content-Type": "application/json; charset=UTF-8"
+                }
+
                 if is_video:
                     tt_endpoint = "https://open.tiktokapis.com/v2/post/publish/video/init/"
                     tt_payload = {
                         "post_info": {
-                            "title": caption[:2200],
-                            "privacy_level": "PUBLIC_TO_EVERYONE",
+                            "title": first_line[:85],
+                            "privacy_level": "SELF_ONLY",
                             "disable_duet": False,
                             "disable_stitch": False,
                             "disable_comment": False
@@ -608,25 +656,34 @@ def api_publish():
                     tt_endpoint = "https://open.tiktokapis.com/v2/post/publish/content/init/"
                     tt_payload = {
                         "post_info": {
-                            "title": caption[:2200],
-                            "privacy_level": "PUBLIC_TO_EVERYONE"
+                            "title": first_line[:85],
+                            "description": caption[:4000],
+                            "privacy_level": "SELF_ONLY",
+                            "auto_add_music": True
                         },
                         "source_info": {
                             "source": "PULL_FROM_URL",
-                            "photo_cover_index": 1,
+                            "photo_cover_index": 0,
                             "photo_images": [public_media_url]
                         },
                         "post_mode": "DIRECT_POST",
                         "media_type": "PHOTO"
                     }
-                tt_headers = {
-                    "Authorization": f"Bearer {tiktok_token}",
-                    "Content-Type": "application/json; charset=UTF-8"
-                }
+
                 try:
-                    tt_resp = requests.post(tt_endpoint, json=tt_payload, headers=tt_headers, timeout=20).json()
-                    tiktok_result = {'status': 'success', 'data': tt_resp}
+                    print(f"Calling TikTok endpoint {tt_endpoint}...")
+                    tt_resp = requests.post(tt_endpoint, json=tt_payload, headers=tt_headers, timeout=25).json()
+                    print("TikTok Publish Response:", tt_resp)
+                    if 'error' in tt_resp and tt_resp.get('error', {}).get('code') not in ['ok', 0]:
+                        # Try fallback without privacy_level restriction
+                        err_code = tt_resp.get('error', {}).get('code')
+                        err_msg = tt_resp.get('error', {}).get('message', 'TikTok error')
+                        print(f"TikTok Warning ({err_code}): {err_msg}")
+                        tiktok_result = {'status': 'error', 'error': f"{err_code}: {err_msg}", 'data': tt_resp}
+                    else:
+                        tiktok_result = {'status': 'success', 'data': tt_resp}
                 except Exception as t_err:
+                    print("TikTok Exception:", t_err)
                     tiktok_result = {'status': 'error', 'error': str(t_err)}
             else:
                 tiktok_result = {
