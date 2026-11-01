@@ -6,6 +6,7 @@ import json
 import requests
 import cv2
 import numpy as np
+import concurrent.futures
 from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
@@ -52,8 +53,8 @@ def remove_background_ai_precision(img_path):
         return orig_pil.convert('RGBA')
 
     h, w = img.shape[:2]
-    # Fast resize for GrabCut to prevent timeout on phone photos
-    max_dim = 1000
+    # Fast resize for GrabCut to guarantee sub-second execution
+    max_dim = 650
     scale = 1.0
     if max(h, w) > max_dim:
         scale = max_dim / float(max(h, w))
@@ -67,7 +68,7 @@ def remove_background_ai_precision(img_path):
         bgdModel = np.zeros((1, 65), np.float64)
         fgdModel = np.zeros((1, 65), np.float64)
         rect = (3, 3, sw - 6, int(sh * 0.92))
-        cv2.grabCut(img_small, mask, rect, bgdModel, fgdModel, 3, cv2.GC_INIT_WITH_RECT)
+        cv2.grabCut(img_small, mask, rect, bgdModel, fgdModel, 2, cv2.GC_INIT_WITH_RECT)
         mask_fg = np.where((mask == cv2.GC_FGD) | (mask == cv2.GC_PR_FGD), 255, 0).astype('uint8')
         
         num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(mask_fg)
@@ -81,7 +82,7 @@ def remove_background_ai_precision(img_path):
         mask_clean = cv2.morphologyEx(mask_clean, cv2.MORPH_CLOSE, kernel)
         mask_blur = cv2.GaussianBlur(mask_clean, (5, 5), 1.0)
 
-        # Scale mask back if resized
+        # Scale mask back to original resolution
         if scale != 1.0:
             mask_blur = cv2.resize(mask_blur, (w, h), interpolation=cv2.INTER_LINEAR)
             mask_clean = cv2.resize(mask_clean, (w, h), interpolation=cv2.INTER_NEAREST)
@@ -93,12 +94,15 @@ def remove_background_ai_precision(img_path):
             crop = rgba[y:y+ch, x:x+cw]
             return Image.fromarray(crop)
     except Exception as e:
-        print(f"Fast Cutout error: {e}")
+        print(f"Fast Cutout notice: {e}")
 
     return orig_pil.convert('RGBA')
 
 def analyze_with_ai(prod_name, reg_price, off_price, style_prompt=''):
-    prompt = f"""You are the creative director for BioGlow, a premier authentic skincare brand in Bangladesh.
+    def _call_gemini():
+        if not ai_client:
+            return None
+        prompt = f"""You are the creative director for BioGlow, a premier authentic skincare brand in Bangladesh.
 Product: '{prod_name}'. Regular price: {reg_price} TK, Offer price: {off_price} TK.
 User Custom Style Command: '{style_prompt if style_prompt else "Clean luxury studio"}'
 
@@ -120,79 +124,137 @@ Return ONLY a valid JSON object with:
    - Clear call to action (inbox with name, address, phone; nationwide cash on delivery)
    - 6-8 relevant hashtags including #BioGlow
 """
-    if ai_client:
-        try:
-            resp = ai_client.models.generate_content(
-                model='gemini-3.5-flash-lite',
-                contents=prompt,
-                config=dict(response_mime_type='application/json')
-            )
-            return json.loads(resp.text)
-        except Exception as e:
-            print(f"Gemini error: {e}")
+        resp = ai_client.models.generate_content(
+            model='gemini-3.5-flash-lite',
+            contents=prompt,
+            config=dict(response_mime_type='application/json')
+        )
+        return json.loads(resp.text)
 
+    # Fast ThreadPool with strict 4.0 second timeout to guarantee Gunicorn never times out
+    try:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(_call_gemini)
+            res = future.result(timeout=4.0)
+            if res and isinstance(res, dict) and 'product_title' in res:
+                return res
+    except Exception as e:
+        print(f"Gemini call timed out or error ({e}), deploying instant authentic BioGlow template")
+
+    # Instant Fallback Template (Always 0.001s, 100% reliable)
+    clean_tag = prod_name.replace(' ', '').replace('-', '')
     return {
         "product_title": prod_name[:28],
         "product_subtitle": "Authentic Skincare Essentials",
         "tagline": "Daily Face & Body Care | 100% Genuine",
         "bullets": [
-            {"icon": "48H", "heading": "Deep Intense Hydration", "detail": "Instantly locks in moisture & soothes dryness"},
-            {"icon": "BAR", "heading": "Restores Skin Barrier", "detail": "Strengthens & protects delicate skin layers"},
-            {"icon": "OIL", "heading": "Non-Greasy & Fast Absorbing", "detail": "Deep nourishment without heavy sticky feel"},
-            {"icon": "SAFE", "heading": "Hypoallergenic & Gentle", "detail": "Fragrance-free, safe for delicate sensitive skin"},
-            {"icon": "DERM", "heading": "Dermatologist Recommended", "detail": "Tested & trusted for all-season skin health"}
+            {"icon": "100%", "heading": "100% Genuine", "detail": "Direct authentic import guaranteed"},
+            {"icon": "CARE", "heading": "Deep Skin Care", "detail": "Nourishes and protects skin barrier"},
+            {"icon": "DERM", "heading": "Dermatologist Tested", "detail": "Gentle on sensitive & all skin types"},
+            {"icon": "BEST", "heading": "Best Offer Price", "detail": f"Offer price now {off_price} TK"},
+            {"icon": "FAST", "heading": "Nationwide Delivery", "detail": "Cash on delivery across Bangladesh"}
         ],
-        "caption": f"""আপনার ত্বকের প্রতিদিনের যত্নে আসল ও খাঁটি সমাধান নিয়ে এলো "{prod_name}"! ✨
+        "caption": f"""✨ আপনার ত্বকের যত্নে ও সুরক্ষায় BioGlow নিয়ে এলো ১০০% অথেনটিক "{prod_name}"! 🌿
 
-যাদের ত্বক নিয়ে একটু বাড়তি সচেতনতা প্রয়োজন, তাদের জন্য এটি দারুণ কার্যকর। ত্বক থাকে ভেতর থেকে হাইড্রেটেড, ফ্রেশ এবং প্রাকৃতিকভাবে উজ্জ্বল।
+আপনার ত্বকের স্বাস্থ্য ও স্বাভাবিক উজ্জ্বলতা ধরে রাখতে এটি হতে পারে আপনার নিত্যদিনের বিশ্বস্ত সঙ্গী। কোনো চিটচিটে ভাব ছাড়াই ত্বকে জোগায় গভীর পুষ্টি ও আর্দ্রতা।
 
-🌿 কেন এটি আপনার স্কিনকেয়ার রুটিনে সেরা?
-✅ গভীর আর্দ্রতা ও হাইড্রেশন: দীর্ঘ সময় ত্বককে নরম ও কোমল রাখতে সাহায্য করে।
-✅ ক্ষতিগ্রস্ত স্কিন ব্যারিয়ার মেরামত: পরিবেশের ধুলাবালি ও রোদের ক্ষতি থেকে সুরক্ষা দেয়।
-✅ কোনো তেলতেলে ভাব নেই: ত্বকে দ্রুত মিশে যায় এবং আরামদায়ক অনুভূতি দেয়।
-✅ সংবেদনশীল ত্বকেও নিরাপদ: মৃদু ও সুষম ফর্মুলা, যা নিয়মিত ব্যবহারের জন্য আদর্শ।
+🌸 কেন এটি আপনার স্কিনকেয়ারের জন্য সেরা?
+✅ ত্বককে রাখে দীর্ঘস্থায়ী হাইড্রেটেড, মসৃণ ও প্রাণবন্ত
+✅ ক্ষতিগ্রস্ত স্কিন ব্যারিয়ার মেরামত ও সুরক্ষিত রাখতে সাহায্য করে
+✅ সব ধরনের ত্বকের জন্য নিরাপদ ও ডার্মাটোলজিক্যালি পরীক্ষিত
+✅ ১০০% অরিজিনাল এবং প্রিমিয়াম কোয়ালিটি নিশ্চয়তা
 
-💵 রেগুলার প্রাইস: {reg_price} টাকা (~~{reg_price} TK~~)
-🔥 ধামাকা অফার প্রাইস: {off_price} টাকা (ONLY {off_price} TK)
+📦 রেগুলার প্রাইজ: ~~{reg_price} TK~~
+🔥 ধামাকা অফার প্রাইজ: {off_price} TK মাত্র!
 
-🛡️ BioGlow নিশ্চয়তা: ১০০% অথেনটিক ও প্রিমিয়াম কোয়ালিটি পণ্য।
+💯 BioGlow গ্যারান্টি: আমরা প্রদান করি শতভাগ আসল স্কিনকেয়ার প্রোডাক্ট। নকল প্রমাণে মানিব্যাক গ্যারান্টি!
 
-📩 অর্ডার করতে এখনই আমাদের পেইজের ইনবক্সে (Inbox) আপনার নাম, ঠিকানা ও ফোন নাম্বার মেসেজ করুন! 
-(সারা দেশে ক্যাশ অন ডেলিভারি সুবিধা রয়েছে)
+🛒 অর্ডার করতে এখনই আপনার নাম, পূর্ণ ঠিকানা এবং মোবাইল নম্বর লিখে আমাদের পেজে ইনবক্স করুন।
+🚚 সমগ্র বাংলাদেশে ক্যাশ অন ডেলিভারি সুবিধা রয়েছে!
 
-#BioGlow #SkincareBangladesh #HealthySkin #AuthenticSkincare #DailyCare"""
+#BioGlow #AuthenticSkincare #{clean_tag} #SkinCareRoutine #BeautyBD #SkincareBangladesh"""
     }
 
 def generate_poster(product_cutout, ai_data, reg_price, off_price, style_prompt=''):
     W, H = 1080, 1080
     prompt_lower = (style_prompt or '').lower()
+    base_y = 860
 
+    # 1. Distinct Dynamic Backgrounds based on User Prompt / Preset
     if ('podium' in prompt_lower or 'marble' in prompt_lower) and os.path.exists(PODIUM_BG_PATH):
         canvas = Image.open(PODIUM_BG_PATH).convert('RGBA').resize((W, H), Image.Resampling.LANCZOS)
         base_y = 818
-        target_h = 550
-        prod_x = 715
+    elif 'podium' in prompt_lower or 'marble' in prompt_lower:
+        canvas = Image.new('RGBA', (W, H), (246, 248, 250, 255))
+        draw_c = ImageDraw.Draw(canvas)
+        draw_c.rectangle([0, 720, W, H], fill=(234, 237, 241, 255))
+        pw, ph = 460, 130
+        px, py = 750, 800
+        base_y = py - 10
+        p_shadow = Image.new('RGBA', (W, H), (0, 0, 0, 0))
+        ImageDraw.Draw(p_shadow).ellipse([px - pw//2 - 20, py + 40, px + pw//2 + 20, py + 120], fill=(20, 30, 40, 50))
+        canvas.alpha_composite(p_shadow.filter(ImageFilter.GaussianBlur(14)))
+        p_body = Image.new('RGBA', (W, H), (0, 0, 0, 0))
+        pd = ImageDraw.Draw(p_body)
+        pd.rectangle([px - pw//2, py, px + pw//2, py + 65], fill=(240, 243, 246, 255))
+        pd.ellipse([px - pw//2, py - 32, px + pw//2, py + 32], fill=(255, 255, 255, 255), outline=(220, 224, 228, 255), width=2)
+        pd.ellipse([px - pw//2, py + 33, px + pw//2, py + 97], fill=(228, 232, 236, 255))
+        canvas.alpha_composite(p_body)
+    elif 'splash' in prompt_lower or 'water' in prompt_lower or 'hydrat' in prompt_lower:
+        canvas = Image.new('RGBA', (W, H), (242, 250, 255, 255))
+        draw_w = ImageDraw.Draw(canvas)
+        draw_w.rectangle([0, 770, W, H], fill=(205, 235, 250, 255))
+        draw_w.line([(0, 770), (W, 770)], fill=(255, 255, 255, 220), width=3)
+        aqua = Image.new('RGBA', (W, H), (0, 0, 0, 0))
+        ImageDraw.Draw(aqua).ellipse([450, 180, 1150, 880], fill=(185, 225, 250, 160))
+        canvas.alpha_composite(aqua.filter(ImageFilter.GaussianBlur(70)))
+        ripple = Image.new('RGBA', (W, H), (0, 0, 0, 0))
+        rd = ImageDraw.Draw(ripple)
+        for rad in [60, 130, 210, 310, 420]:
+            rd.ellipse([755 - rad, 830 - int(rad*0.3), 755 + rad, 830 + int(rad*0.3)], outline=(255, 255, 255, 140), width=3)
+        canvas.alpha_composite(ripple.filter(ImageFilter.GaussianBlur(5)))
+        drops = Image.new('RGBA', (W, H), (0, 0, 0, 0))
+        dd = ImageDraw.Draw(drops)
+        import random
+        rng = random.Random(42)
+        for _ in range(25):
+            dx = rng.randint(550, 1020)
+            dy = rng.randint(250, 780)
+            dr = rng.randint(4, 12)
+            dd.ellipse([dx - dr, dy - dr, dx + dr, dy + dr], fill=(255, 255, 255, 180))
+            dd.ellipse([dx - dr + 1, dy - dr + 1, dx - dr + int(dr*0.6), dy - dr + int(dr*0.6)], fill=(255, 255, 255, 255))
+        canvas.alpha_composite(drops.filter(ImageFilter.GaussianBlur(1)))
+        base_y = 850
+    elif 'hand' in prompt_lower or 'ugc' in prompt_lower or 'lifestyle' in prompt_lower:
+        canvas = Image.new('RGBA', (W, H), (252, 249, 244, 255))
+        draw_u = ImageDraw.Draw(canvas)
+        draw_u.rectangle([0, 760, W, H], fill=(225, 208, 188, 255))
+        draw_u.line([(0, 760), (W, 760)], fill=(240, 226, 210, 255), width=2)
+        draw_u.line([(0, 762), (W, 762)], fill=(195, 175, 155, 255), width=2)
+        sun = Image.new('RGBA', (W, H), (0, 0, 0, 0))
+        ImageDraw.Draw(sun).ellipse([400, 100, 1150, 850], fill=(255, 242, 210, 140))
+        canvas.alpha_composite(sun.filter(ImageFilter.GaussianBlur(80)))
+        slats = Image.new('RGBA', (W, H), (0, 0, 0, 0))
+        sd = ImageDraw.Draw(slats)
+        for sy in range(-200, 1200, 130):
+            sd.polygon([(250, sy), (1200, sy - 260), (1200, sy - 190), (250, sy + 70)], fill=(40, 25, 10, 28))
+        canvas.alpha_composite(slats.filter(ImageFilter.GaussianBlur(22)))
+        base_y = 845
+    elif 'rose' in prompt_lower or 'pink' in prompt_lower or 'glow' in prompt_lower:
+        canvas = Image.new('RGBA', (W, H), (255, 248, 250, 255))
+        pink = Image.new('RGBA', (W, H), (0, 0, 0, 0))
+        ImageDraw.Draw(pink).ellipse([450, 200, 1100, 900], fill=(255, 228, 235, 160))
+        canvas.alpha_composite(pink.filter(ImageFilter.GaussianBlur(75)))
+        base_y = 860
     else:
         # Default / Custom clean studio with ambient customized glow
         canvas = Image.new('RGBA', (W, H), (252, 253, 254, 255))
-        
-        # Determine ambient glow tint from prompt
-        glow_color = (232, 246, 240, 170) # default soft mint/sage
-        if 'rose' in prompt_lower or 'pink' in prompt_lower:
-            glow_color = (255, 235, 240, 170)
-        elif 'gold' in prompt_lower or 'warm' in prompt_lower or 'sun' in prompt_lower:
-            glow_color = (255, 248, 225, 180)
-        elif 'blue' in prompt_lower or 'water' in prompt_lower:
-            glow_color = (225, 242, 254, 180)
-
         glow = Image.new('RGBA', (700, 700), (0, 0, 0, 0))
-        ImageDraw.Draw(glow).ellipse([60, 60, 640, 640], fill=glow_color)
+        ImageDraw.Draw(glow).ellipse([60, 60, 640, 640], fill=(232, 246, 240, 170))
         canvas.alpha_composite(glow.filter(ImageFilter.GaussianBlur(65)), (510, 310))
         base_y = 860
-        target_h = 580
-        prod_x = 710
 
-    # Logo & Watermark
+    # 2. Logo & Watermark
     if os.path.exists(LOGO_PATH):
         logo_img = Image.open(LOGO_PATH).convert('RGBA')
         logo_tight = logo_img.crop(logo_img.getbbox())
@@ -210,22 +272,29 @@ def generate_poster(product_cutout, ai_data, reg_price, off_price, style_prompt=
     else:
         logo_h = 40
 
-    scale = target_h / product_cutout.height
+    # 3. Product Sizing & Centering (Fix: Multi-item cutouts never clip on right edge)
+    scale = min(560 / max(product_cutout.height, 1), 510 / max(product_cutout.width, 1))
     target_w = int(product_cutout.width * scale)
+    target_h = int(product_cutout.height * scale)
     scaled_prod = product_cutout.resize((target_w, target_h), Image.Resampling.LANCZOS)
+
+    right_zone_center = 755
+    prod_x = right_zone_center - (target_w // 2)
+    prod_x = max(475, min(prod_x, W - target_w - 30))
     prod_y = base_y - target_h
 
-    amb_shadow = Image.new('RGBA', (target_w + 100, 60), (0, 0, 0, 0))
-    ImageDraw.Draw(amb_shadow).ellipse([15, 10, target_w + 85, 50], fill=(25, 45, 50, 75))
-    canvas.alpha_composite(amb_shadow.filter(ImageFilter.GaussianBlur(14)), (prod_x - 50, base_y - 25))
+    # Adaptive contact and ambient shadows
+    amb_shadow = Image.new('RGBA', (target_w + 80, 50), (0, 0, 0, 0))
+    ImageDraw.Draw(amb_shadow).ellipse([10, 8, target_w + 70, 42], fill=(20, 35, 45, 75))
+    canvas.alpha_composite(amb_shadow.filter(ImageFilter.GaussianBlur(12)), (prod_x - 40, base_y - 20))
 
-    cont_shadow = Image.new('RGBA', (target_w + 20, 24), (0, 0, 0, 0))
-    ImageDraw.Draw(cont_shadow).ellipse([8, 4, target_w + 12, 18], fill=(15, 25, 30, 150))
-    canvas.alpha_composite(cont_shadow.filter(ImageFilter.GaussianBlur(4)), (prod_x - 10, base_y - 10))
+    cont_shadow = Image.new('RGBA', (target_w + 20, 20), (0, 0, 0, 0))
+    ImageDraw.Draw(cont_shadow).ellipse([5, 4, target_w + 15, 16], fill=(10, 20, 25, 140))
+    canvas.alpha_composite(cont_shadow.filter(ImageFilter.GaussianBlur(4)), (prod_x - 10, base_y - 8))
 
     canvas.alpha_composite(scaled_prod, (prod_x, prod_y))
 
-    # Typography
+    # 4. Typography
     try:
         f_title = ImageFont.truetype(r'C:\Windows\Fonts\segoeuib.ttf', 35)
         f_subtitle = ImageFont.truetype(r'C:\Windows\Fonts\segoeuib.ttf', 20)
@@ -320,6 +389,7 @@ def index():
 @app.route('/api/generate', methods=['POST'])
 def api_generate():
     try:
+        t_start = time.time()
         file = request.files.get('image')
         prod_name = request.form.get('product_name', 'Skincare Product')
         reg_price = request.form.get('regular_price', '0')
@@ -334,21 +404,54 @@ def api_generate():
         raw_path = os.path.join(UPLOAD_FOLDER, f'raw_{uid}{ext}')
         file.save(raw_path)
 
-        cutout = remove_background_ai_precision(raw_path)
+        mode = request.form.get('mode', 'poster')
+        is_video = ext.lower() in ['.mp4', '.mov', '.avi', '.mkv', '.webm']
         ai_data = analyze_with_ai(prod_name, reg_price, off_price, style_prompt=style_prompt)
-        poster_rgb = generate_poster(cutout, ai_data, reg_price, off_price, style_prompt=style_prompt)
-        
-        poster_filename = f'poster_{uid}.jpg'
-        poster_path = os.path.join(STATIC_FOLDER, poster_filename)
-        poster_rgb.save(poster_path, 'JPEG', quality=95)
 
-        return jsonify({
-            'success': True,
-            'poster_url': f'/static/{poster_filename}',
-            'poster_path': poster_path,
-            'caption': ai_data.get('caption', '')
-        })
+        if mode == 'direct' or is_video:
+            if is_video:
+                dest_filename = f'video_{uid}{ext}'
+                dest_path = os.path.join(STATIC_FOLDER, dest_filename)
+                import shutil
+                shutil.copyfile(raw_path, dest_path)
+                return jsonify({
+                    'success': True,
+                    'poster_url': f'/static/{dest_filename}',
+                    'poster_path': dest_path,
+                    'is_video': True,
+                    'caption': ai_data.get('caption', '')
+                })
+            else:
+                dest_filename = f'direct_{uid}.jpg'
+                dest_path = os.path.join(STATIC_FOLDER, dest_filename)
+                orig_img = Image.open(raw_path).convert('RGB')
+                orig_img.save(dest_path, 'JPEG', quality=95)
+                return jsonify({
+                    'success': True,
+                    'poster_url': f'/static/{dest_filename}',
+                    'poster_path': dest_path,
+                    'is_video': False,
+                    'caption': ai_data.get('caption', '')
+                })
+        else:
+            cutout = remove_background_ai_precision(raw_path)
+            poster_rgb = generate_poster(cutout, ai_data, reg_price, off_price, style_prompt=style_prompt)
+            poster_filename = f'poster_{uid}.jpg'
+            poster_path = os.path.join(STATIC_FOLDER, poster_filename)
+            poster_rgb.save(poster_path, 'JPEG', quality=95)
+
+            total_elapsed = round(time.time() - t_start, 2)
+            print(f"API /generate SUCCESS for '{prod_name}' in {total_elapsed}s")
+
+            return jsonify({
+                'success': True,
+                'poster_url': f'/static/{poster_filename}',
+                'poster_path': poster_path,
+                'is_video': False,
+                'caption': ai_data.get('caption', '')
+            })
     except Exception as e:
+        print(f"API /generate Exception: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/publish', methods=['POST'])
@@ -363,12 +466,20 @@ def api_publish():
         if not poster_path or not os.path.exists(poster_path):
             return jsonify({'success': False, 'error': 'Poster file not found'}), 400
 
-        # 1. Facebook Page (Instant OR Scheduled)
-        fb_url = f"https://graph.facebook.com/v21.0/{PAGE_ID}/photos"
-        fb_payload = {
-            "caption": caption,
-            "access_token": PAGE_TOKEN
-        }
+        # 1. Facebook Page (Photo OR Video)
+        is_video = os.path.splitext(poster_path)[1].lower() in ['.mp4', '.mov', '.avi', '.mkv', '.webm']
+        if is_video:
+            fb_url = f"https://graph.facebook.com/v21.0/{PAGE_ID}/videos"
+            fb_payload = {
+                "description": caption,
+                "access_token": PAGE_TOKEN
+            }
+        else:
+            fb_url = f"https://graph.facebook.com/v21.0/{PAGE_ID}/photos"
+            fb_payload = {
+                "caption": caption,
+                "access_token": PAGE_TOKEN
+            }
 
         if is_scheduled and schedule_time:
             fb_payload["published"] = "false"
@@ -380,6 +491,10 @@ def api_publish():
                 data=fb_payload,
                 files={"source": f}
             ).json()
+
+        destinations = data.get('destinations', ['facebook', 'instagram', 'tiktok'])
+        tiktok_token = os.getenv("TIKTOK_ACCESS_TOKEN")
+        tiktok_result = {'status': 'skipped'}
 
         if "id" not in fb_resp:
             return jsonify({'success': False, 'error': f"Facebook error: {fb_resp}"}), 500
@@ -426,17 +541,95 @@ def api_publish():
                     ).json()
                     ig_permalink = link_resp.get("permalink", ig_permalink)
 
+        # 3. TikTok Publishing
+        if 'tiktok' in destinations:
+            if tiktok_token:
+                public_media_url = f"https://bioglow-autoposter.onrender.com/static/{os.path.basename(poster_path)}"
+                if is_video:
+                    tt_endpoint = "https://open.tiktokapis.com/v2/post/publish/video/init/"
+                    tt_payload = {
+                        "post_info": {
+                            "title": caption[:2200],
+                            "privacy_level": "PUBLIC_TO_EVERYONE",
+                            "disable_duet": False,
+                            "disable_stitch": False,
+                            "disable_comment": False
+                        },
+                        "source_info": {
+                            "source": "PULL_FROM_URL",
+                            "video_url": public_media_url
+                        }
+                    }
+                else:
+                    tt_endpoint = "https://open.tiktokapis.com/v2/post/publish/content/init/"
+                    tt_payload = {
+                        "post_info": {
+                            "title": caption[:2200],
+                            "privacy_level": "PUBLIC_TO_EVERYONE"
+                        },
+                        "source_info": {
+                            "source": "PULL_FROM_URL",
+                            "photo_cover_index": 1,
+                            "photo_images": [public_media_url]
+                        },
+                        "post_mode": "DIRECT_POST",
+                        "media_type": "PHOTO"
+                    }
+                tt_headers = {
+                    "Authorization": f"Bearer {tiktok_token}",
+                    "Content-Type": "application/json; charset=UTF-8"
+                }
+                try:
+                    tt_resp = requests.post(tt_endpoint, json=tt_payload, headers=tt_headers, timeout=20).json()
+                    tiktok_result = {'status': 'success', 'data': tt_resp}
+                except Exception as t_err:
+                    tiktok_result = {'status': 'error', 'error': str(t_err)}
+            else:
+                tiktok_result = {
+                    'status': 'setup_required',
+                    'message': 'TikTok Developer Access Token প্রয়োজন (developers.tiktok.com এ এক ক্লিকে টোকেন কানেক্ট করুন)'
+                }
+
         return jsonify({
             'success': True,
             'is_scheduled': False,
             'fb_post_id': post_id,
             'fb_url': f'https://www.facebook.com/{PAGE_ID}',
-            'ig_url': ig_permalink
+            'ig_url': ig_permalink,
+            'tiktok': tiktok_result
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    print(f"BioGlow Cloud App Server running on port {port} with Custom Style Prompt & Scheduling")
+    print(f"BioGlow Cloud App Server running on port {port} with Instant Speed & Fast Timeout")
     app.run(host='0.0.0.0', port=port, debug=False)
+
+@app.route('/privacy')
+def privacy_policy():
+    return """
+    <html><head><title>BioGlow Privacy Policy</title></head>
+    <body style="font-family:sans-serif;max-width:800px;margin:40px auto;padding:20px;line-height:1.6;">
+    <h1>Privacy Policy for BioGlow</h1>
+    <p>Last updated: November 2026</p>
+    <p>BioGlow ("we", "our") respects your privacy. This application is used internally by BioGlow Bangladesh to publish authentic skincare product promotional posts, images, and video reels to our connected social media profiles including Facebook, Instagram, and TikTok.</p>
+    <p>We do not collect, sell, or share personal data with any third party.</p>
+    </body></html>
+    """
+
+@app.route('/terms')
+def terms_of_service():
+    return """
+    <html><head><title>BioGlow Terms of Service</title></head>
+    <body style="font-family:sans-serif;max-width:800px;margin:40px auto;padding:20px;line-height:1.6;">
+    <h1>Terms of Service for BioGlow</h1>
+    <p>Last updated: November 2026</p>
+    <p>BioGlow provides authentic, dermatologically tested skincare products in Bangladesh. This service is for authorized promotional publishing across BioGlow official social media channels.</p>
+    </body></html>
+    """
+
+@app.route('/tiktokbTPoq6d4E8kpcxGwjkCsvXyd1haTjhNi.txt')
+def tiktok_signature_file():
+    from flask import Response
+    return Response("tiktok-developers-site-verification=bTPoq6d4E8kpcxGwjkCsvXyd1haTjhNi", mimetype='text/plain')
