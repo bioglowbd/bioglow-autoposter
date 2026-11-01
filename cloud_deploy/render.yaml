@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: bioglow-autoposter
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --workers 2 --bind 0.0.0.0:$PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.0
+      - key: FACEBOOK_PAGE_ID
+        sync: false
+      - key: PAGE_ACCESS_TOKEN
+        sync: false
+      - key: INSTAGRAM_ACCOUNT_ID
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
