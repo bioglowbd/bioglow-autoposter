@@ -635,6 +635,6 @@ def terms_of_service():
 def tiktok_dynamic_signature(token=""):
     from flask import Response
     if not token:
-        token = "b1oLP6LN7EROaQYsRK6bh1HER2upip4E"
+        token = "gqEGuMX4XJ9yzyAtXbI7it1y2ATIu5pQ"
     val = f"tiktok-developers-site-verification={token}"
     return Response(val, mimetype='text/plain', headers={'Content-Length': str(len(val))})
