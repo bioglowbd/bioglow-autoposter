@@ -629,7 +629,12 @@ def terms_of_service():
     </body></html>
     """
 
-@app.route('/tiktokbTPoq6d4E8kpcxGwjkCsvXyd1haTjhNi.txt')
-def tiktok_signature_file():
+@app.route('/tiktok<token>.txt')
+@app.route('/tiktok<token>')
+@app.route('/tiktok-developers-site-verification.txt')
+def tiktok_dynamic_signature(token=""):
     from flask import Response
-    return Response("tiktok-developers-site-verification=bTPoq6d4E8kpcxGwjkCsvXyd1haTjhNi", mimetype='text/plain')
+    if not token:
+        token = "b1oLP6LN7EROaQYsRK6bh1HER2upip4E"
+    val = f"tiktok-developers-site-verification={token}"
+    return Response(val, mimetype='text/plain', headers={'Content-Length': str(len(val))})
