@@ -398,14 +398,17 @@ def index():
         }
         try:
             resp = requests.post(token_url, data=payload, headers=headers, timeout=15).json()
-            if 'data' in resp and 'access_token' in resp['data']:
-                t_data = resp['data']
+            print("TikTok OAuth Exchange Response:", resp)
+            acc_token = resp.get('access_token') or (resp.get('data') or {}).get('access_token')
+            if acc_token:
                 token_file = os.path.join(STATIC_FOLDER, 'tiktok_token.json')
                 with open(token_file, 'w', encoding='utf-8') as tf:
-                    json.dump(t_data, tf)
-                os.environ['TIKTOK_ACCESS_TOKEN'] = t_data['access_token']
+                    json.dump(resp, tf)
+                os.environ['TIKTOK_ACCESS_TOKEN'] = acc_token
                 tiktok_connected = True
-                print("TikTok OAuth Connected Successfully for user:", t_data.get('open_id'))
+                print("TikTok OAuth Connected Successfully! Token:", acc_token[:15] + "...")
+            else:
+                print("TikTok Token Exchange Failed. Response:", resp)
         except Exception as oe:
             print("TikTok OAuth Exchange Exception:", oe)
 
@@ -415,9 +418,11 @@ def index():
         try:
             with open(t_file, 'r', encoding='utf-8') as tf:
                 saved = json.load(tf)
-                os.environ['TIKTOK_ACCESS_TOKEN'] = saved.get('access_token', '')
-        except:
-            pass
+                tok = saved.get('access_token') or (saved.get('data') or {}).get('access_token', '')
+                if tok:
+                    os.environ['TIKTOK_ACCESS_TOKEN'] = tok
+        except Exception as re:
+            print("Error reading tiktok_token.json:", re)
 
     return render_template('index.html', tiktok_connected=tiktok_connected or bool(os.getenv('TIKTOK_ACCESS_TOKEN')))
 
