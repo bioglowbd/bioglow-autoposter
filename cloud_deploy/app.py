@@ -36,8 +36,8 @@ OPENAI_KEY = os.getenv('OPENAI_API_KEY')
 
 ai_client = genai.Client(api_key=GEMINI_KEY) if GEMINI_KEY else None
 
-LOGO_PATH = r'C:\Users\palas\.gemini\antigravity\brain\bed6544d-8c08-4d3b-9c9c-ce0d8073ee2b\.user_uploaded\media_1793494398990_d1826032.png'
-PODIUM_BG_PATH = r'C:\Users\palas\.gemini\antigravity\brain\bed6544d-8c08-4d3b-9c9c-ce0d8073ee2b\skincare_podium_background_v2_1793502956402.jpg'
+LOGO_PATH = os.path.join(STATIC_FOLDER, 'logo.png')
+PODIUM_BG_PATH = os.path.join(STATIC_FOLDER, 'podium_bg.jpg')
 
 def remove_background_ai_precision(img_path):
     orig_pil = Image.open(img_path)
@@ -53,12 +53,22 @@ def remove_background_ai_precision(img_path):
         return orig_pil.convert('RGBA')
 
     h, w = img.shape[:2]
+    # Fast resize for GrabCut to prevent timeout on phone photos
+    max_dim = 1000
+    scale = 1.0
+    if max(h, w) > max_dim:
+        scale = max_dim / float(max(h, w))
+        img_small = cv2.resize(img, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
+    else:
+        img_small = img.copy()
+
+    sh, sw = img_small.shape[:2]
     try:
-        mask = np.zeros((h, w), np.uint8)
+        mask = np.zeros((sh, sw), np.uint8)
         bgdModel = np.zeros((1, 65), np.float64)
         fgdModel = np.zeros((1, 65), np.float64)
-        rect = (4, 4, w - 8, int(h * 0.90))
-        cv2.grabCut(img, mask, rect, bgdModel, fgdModel, 4, cv2.GC_INIT_WITH_RECT)
+        rect = (3, 3, sw - 6, int(sh * 0.92))
+        cv2.grabCut(img_small, mask, rect, bgdModel, fgdModel, 3, cv2.GC_INIT_WITH_RECT)
         mask_fg = np.where((mask == cv2.GC_FGD) | (mask == cv2.GC_PR_FGD), 255, 0).astype('uint8')
         
         num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(mask_fg)
@@ -72,6 +82,11 @@ def remove_background_ai_precision(img_path):
         mask_clean = cv2.morphologyEx(mask_clean, cv2.MORPH_CLOSE, kernel)
         mask_blur = cv2.GaussianBlur(mask_clean, (5, 5), 1.0)
 
+        # Scale mask back if resized
+        if scale != 1.0:
+            mask_blur = cv2.resize(mask_blur, (w, h), interpolation=cv2.INTER_LINEAR)
+            mask_clean = cv2.resize(mask_clean, (w, h), interpolation=cv2.INTER_NEAREST)
+
         x, y, cw, ch = cv2.boundingRect(mask_clean)
         if cw > 30 and ch > 30:
             b, g, r = cv2.split(img)
@@ -79,7 +94,7 @@ def remove_background_ai_precision(img_path):
             crop = rgba[y:y+ch, x:x+cw]
             return Image.fromarray(crop)
     except Exception as e:
-        print(f"Cutout error: {e}")
+        print(f"Fast Cutout error: {e}")
 
     return orig_pil.convert('RGBA')
 
