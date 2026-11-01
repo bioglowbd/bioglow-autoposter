@@ -9,6 +9,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="icon" type="image/png" href="/static/icon-192.png">
+  <meta name="tiktok-developers-site-verification" content="bTPoq6d4E8kpcxGwjkCsvXyd1haTjhNi">
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body {
@@ -65,7 +66,7 @@
         <h1 class="font-bold text-lg text-white leading-tight">BioGlow</h1>
         <p class="text-xs text-emerald-400 flex items-center gap-1">
           <span class="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-pulse"></span>
-          Page & Instagram Connected
+          FB, Instagram & TikTok Connected
         </p>
       </div>
     </div>
@@ -117,8 +118,23 @@
         </div>
       </div>
 
+      <!-- Post Mode Selector -->
+      <div class="bg-slate-900/60 p-2.5 rounded-xl border border-white/10 mb-2">
+        <label class="block text-[11px] text-slate-300 font-medium mb-1.5">পোস্টের মোড নির্বাচন করুন:</label>
+        <div class="grid grid-cols-2 gap-2">
+          <label id="modePosterLabel" class="flex items-center gap-1.5 text-xs text-sky-200 p-2 rounded-lg bg-sky-950/60 border border-sky-400/40 cursor-pointer">
+            <input type="radio" name="post_mode" value="poster" checked onchange="switchPostMode('poster')">
+            <span class="font-medium">🎨 AI ব্র্যান্ডেড পোস্টার</span>
+          </label>
+          <label id="modeDirectLabel" class="flex items-center gap-1.5 text-xs text-slate-300 p-2 rounded-lg bg-slate-800/40 border border-white/10 cursor-pointer">
+            <input type="radio" name="post_mode" value="direct" onchange="switchPostMode('direct')">
+            <span class="font-medium">📸 আসল ছবি/ভিডিও</span>
+          </label>
+        </div>
+      </div>
+
       <!-- Poster Style Prompt / Command Box (Custom Prompt) -->
-      <div>
+      <div id="stylePromptBox">
         <div class="flex justify-between items-center mb-1">
           <label class="block text-xs text-sky-300 font-medium">🎨 পোস্টার স্টাইল ও ব্যাকগ্রাউন্ড কমান্ড (Prompt):</label>
           <span class="text-[10px] text-slate-400">নিজের ভাষায় লিখুন</span>
@@ -135,22 +151,39 @@
         </div>
       </div>
 
-      <!-- Image Upload Area -->
+      <!-- Image / Video Upload Area -->
       <div>
-        <label class="block text-xs text-slate-300 mb-1 font-medium">প্রোডাক্টের ছবি আপলোড করুন *</label>
-        <div id="dropZone" class="border-2 border-dashed border-sky-400/40 rounded-xl p-4 text-center cursor-pointer hover:border-sky-400 transition bg-sky-950/20">
-          <input type="file" id="imageInput" accept="image/*" class="hidden">
+        <div class="flex justify-between items-center mb-1">
+          <label class="block text-xs text-slate-300 font-medium">ছবি বা ভিডিও নির্বাচন করুন *</label>
+          <span class="text-[10px] text-emerald-400">ছবি বা রিলস ভিডিও</span>
+        </div>
+
+        <!-- Camera & Gallery Quick Action Buttons -->
+        <div class="grid grid-cols-2 gap-2 mb-2">
+          <button type="button" onclick="document.getElementById('cameraInput').click()"
+            class="bg-sky-600/30 hover:bg-sky-600/50 border border-sky-400/40 text-sky-200 py-2.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition active:scale-95 shadow-sm">
+            <span class="text-base">📸</span>
+            <span>ক্যামেরা দিয়ে তুলুন</span>
+          </button>
+          <button type="button" onclick="document.getElementById('galleryInput').click()"
+            class="bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-400/40 text-indigo-200 py-2.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition active:scale-95 shadow-sm">
+            <span class="text-base">📁</span>
+            <span>গ্যালারি / ভিডিও</span>
+          </button>
+        </div>
+
+        <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden">
+        <input type="file" id="galleryInput" accept="image/*,video/*" class="hidden">
+
+        <div id="dropZone" class="border-2 border-dashed border-sky-400/40 rounded-xl p-3 text-center cursor-pointer hover:border-sky-400 transition bg-sky-950/20">
           <div id="uploadPrompt">
-            <svg class="w-8 h-8 mx-auto text-sky-400 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
-            </svg>
-            <p class="text-xs text-slate-200 font-semibold">ক্যামেরা দিয়ে তুলুন বা গ্যালারি থেকে সিলেক্ট করুন</p>
-            <p class="text-[10px] text-slate-400 mt-0.5">স্বয়ংক্রিয় নিখুঁত GrabCut AI ব্যাকগ্রাউন্ড রিমুভ</p>
+            <p class="text-xs text-slate-300 font-medium">অথবা এখানে ট্যাপ করে যেকোনো ফাইল বেছে নিন</p>
+            <p class="text-[10px] text-slate-400 mt-0.5">সাপোর্ট: JPG, PNG, WEBP, MP4 ভিডিও</p>
           </div>
           <div id="previewArea" class="hidden">
             <img id="imgThumbnail" class="max-h-36 mx-auto rounded-lg shadow object-contain">
-            <p class="text-[11px] text-emerald-400 mt-2 font-medium">ছবি সফলভাবে সিলেক্ট হয়েছে (পরিবর্তন করতে ট্যাপ করুন)</p>
+            <video id="videoThumbnail" class="max-h-36 mx-auto rounded-lg shadow hidden" controls></video>
+            <p class="text-[11px] text-emerald-400 mt-2 font-medium" id="mediaSelectedText">ফাইল সিলেক্ট হয়েছে (পরিবর্তন করতে ট্যাপ করুন)</p>
           </div>
         </div>
       </div>
@@ -179,9 +212,10 @@
       <span class="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/30 font-semibold">প্রিভিউ রেডি</span>
     </div>
 
-    <!-- Poster Image -->
+    <!-- Media Preview (Image or Video) -->
     <div class="rounded-xl overflow-hidden shadow-2xl border border-white/20 bg-black/40">
       <img id="posterPreview" class="w-full aspect-square object-contain" alt="Generated Poster">
+      <video id="videoPreview" class="w-full aspect-square object-contain hidden" controls autoplay muted loop></video>
     </div>
 
     <!-- Caption Box -->
@@ -196,8 +230,29 @@
 
     <!-- Publishing / Scheduling Options -->
     <div class="border-t border-white/10 pt-3 space-y-3">
+      <!-- Destination Platforms -->
+      <div>
+        <label class="block text-xs text-sky-300 font-semibold uppercase tracking-wider mb-2">
+          কোন কোন প্ল্যাটফর্মে পোস্ট হবে:
+        </label>
+        <div class="grid grid-cols-3 gap-1.5">
+          <label class="flex items-center gap-1.5 p-2 rounded-xl border border-sky-500/30 bg-sky-950/40 cursor-pointer text-xs text-sky-200">
+            <input type="checkbox" id="destFb" checked class="rounded accent-sky-500">
+            <span class="font-bold">Facebook</span>
+          </label>
+          <label class="flex items-center gap-1.5 p-2 rounded-xl border border-pink-500/30 bg-pink-950/40 cursor-pointer text-xs text-pink-200">
+            <input type="checkbox" id="destIg" checked class="rounded accent-pink-500">
+            <span class="font-bold">Instagram</span>
+          </label>
+          <label class="flex items-center gap-1.5 p-2 rounded-xl border border-cyan-500/30 bg-slate-900/60 cursor-pointer text-xs text-cyan-200">
+            <input type="checkbox" id="destTiktok" checked class="rounded accent-cyan-400">
+            <span class="font-bold">TikTok</span>
+          </label>
+        </div>
+      </div>
+
       <label class="block text-xs text-sky-300 font-semibold uppercase tracking-wider">
-        পোস্টিং অপশন নির্বাচন করুন:
+        পোস্টিং সময় নির্বাচন করুন:
       </label>
 
       <div class="grid grid-cols-2 gap-2">
@@ -228,7 +283,7 @@
     <div class="space-y-2">
       <button id="publishBtn"
         class="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white font-extrabold py-3.5 rounded-xl shadow-lg shadow-emerald-500/30 text-sm flex items-center justify-center gap-2 transition active:scale-98">
-        <span id="publishBtnText">🚀 ফেসবুক ও ইনস্টাগ্রামে লাইভ পোস্ট করুন</span>
+        <span id="publishBtnText">🚀 ফেসবুক, ইনস্টাগ্রাম ও টিকটকে পোস্ট করুন</span>
       </button>
       
       <button type="button" class="w-full text-xs text-slate-400 hover:text-white py-2 text-center" onclick="goToStep(1)">
@@ -338,27 +393,69 @@
       }
     });
 
-    // Image Input handling
+    // Media Handling (Camera + Gallery + Video)
+    let selectedMediaFile = null;
+    let currentPostMode = 'poster';
+
+    function switchPostMode(mode) {
+      currentPostMode = mode;
+      const styleBox = document.getElementById('stylePromptBox');
+      const pLabel = document.getElementById('modePosterLabel');
+      const dLabel = document.getElementById('modeDirectLabel');
+      const btnSpan = document.querySelector('#generateBtn span');
+
+      if (mode === 'direct') {
+        styleBox.classList.add('hidden');
+        pLabel.className = 'flex items-center gap-1.5 text-xs text-slate-300 p-2 rounded-lg bg-slate-800/40 border border-white/10 cursor-pointer';
+        dLabel.className = 'flex items-center gap-1.5 text-xs text-sky-200 p-2 rounded-lg bg-sky-950/60 border border-sky-400/40 cursor-pointer';
+        btnSpan.innerText = '⚡ ক্যাপশন তৈরি ও রিভিউ করুন';
+      } else {
+        styleBox.classList.remove('hidden');
+        pLabel.className = 'flex items-center gap-1.5 text-xs text-sky-200 p-2 rounded-lg bg-sky-950/60 border border-sky-400/40 cursor-pointer';
+        dLabel.className = 'flex items-center gap-1.5 text-xs text-slate-300 p-2 rounded-lg bg-slate-800/40 border border-white/10 cursor-pointer';
+        btnSpan.innerText = '⚡ পোস্টার ও ক্যাপশন তৈরি করুন';
+      }
+    }
+
     const dropZone = document.getElementById('dropZone');
-    const imageInput = document.getElementById('imageInput');
+    const cameraInput = document.getElementById('cameraInput');
+    const galleryInput = document.getElementById('galleryInput');
     const uploadPrompt = document.getElementById('uploadPrompt');
     const previewArea = document.getElementById('previewArea');
     const imgThumbnail = document.getElementById('imgThumbnail');
+    const videoThumbnail = document.getElementById('videoThumbnail');
+    const mediaSelectedText = document.getElementById('mediaSelectedText');
 
-    dropZone.addEventListener('click', () => imageInput.click());
+    dropZone.addEventListener('click', () => galleryInput.click());
 
-    imageInput.addEventListener('change', () => {
-      const file = imageInput.files[0];
-      if (file) {
+    function handleFileSelection(file) {
+      if (!file) return;
+      selectedMediaFile = file;
+      uploadPrompt.classList.add('hidden');
+      previewArea.classList.remove('hidden');
+
+      if (file.type.startsWith('video/')) {
+        imgThumbnail.classList.add('hidden');
+        videoThumbnail.classList.remove('hidden');
+        videoThumbnail.src = URL.createObjectURL(file);
+        mediaSelectedText.innerText = '🎬 ভিডিও সিলেক্ট হয়েছে (সরাসরি আসল ভিডিও পোস্ট হবে)';
+        // Automatically switch to direct mode for videos
+        document.querySelector('input[name="post_mode"][value="direct"]').checked = true;
+        switchPostMode('direct');
+      } else {
+        videoThumbnail.classList.add('hidden');
+        imgThumbnail.classList.remove('hidden');
+        mediaSelectedText.innerText = '📸 ছবি সিলেক্ট হয়েছে (পরিবর্তন করতে ট্যাপ করুন)';
         const reader = new FileReader();
         reader.onload = (e) => {
           imgThumbnail.src = e.target.result;
-          uploadPrompt.classList.add('hidden');
-          previewArea.classList.remove('hidden');
         };
         reader.readAsDataURL(file);
       }
-    });
+    }
+
+    cameraInput.addEventListener('change', () => handleFileSelection(cameraInput.files[0]));
+    galleryInput.addEventListener('change', () => handleFileSelection(galleryInput.files[0]));
 
     // Form Submit (Generate)
     const form = document.getElementById('posterForm');
@@ -411,24 +508,28 @@
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const file = imageInput.files[0];
+      const file = selectedMediaFile;
       if (!file) {
-        alert('অনুগ্রহ করে একটি প্রোডাক্টের ছবি সিলেক্ট করুন!');
+        alert('অনুগ্রহ করে ক্যামেরা দিয়ে ছবি তুলুন বা গ্যালারি থেকে সিলেক্ট করুন!');
         return;
       }
 
       step1Box.classList.add('hidden');
       loadingBox.classList.remove('hidden');
 
-      // Superfast in-browser compression: turns 15MB mobile photos into 150KB for instant upload
-      const optimizedFile = await compressImageForFastUpload(file);
+      // Superfast in-browser compression for images (leaves videos untouched)
+      let uploadPayload = file;
+      if (file.type.startsWith('image/')) {
+        uploadPayload = await compressImageForFastUpload(file);
+      }
 
       const formData = new FormData();
-      formData.append('image', optimizedFile);
+      formData.append('image', uploadPayload);
       formData.append('product_name', document.getElementById('prodName').value);
       formData.append('regular_price', document.getElementById('regPrice').value);
       formData.append('offer_price', document.getElementById('offPrice').value);
       formData.append('style_prompt', document.getElementById('stylePrompt').value);
+      formData.append('mode', currentPostMode);
       try {
         const res = await fetch('/api/generate', {
           method: 'POST',
@@ -449,7 +550,16 @@
         if (data.success) {
           hasGenerated = true;
           currentPosterPath = data.poster_path;
-          posterPreview.src = data.poster_url + '?t=' + Date.now();
+          const vPreview = document.getElementById('videoPreview');
+          if (data.is_video) {
+            posterPreview.classList.add('hidden');
+            vPreview.classList.remove('hidden');
+            vPreview.src = data.poster_url;
+          } else {
+            vPreview.classList.add('hidden');
+            posterPreview.classList.remove('hidden');
+            posterPreview.src = data.poster_url + '?t=' + Date.now();
+          }
           captionText.value = data.caption;
           goToStep(2);
         } else {
@@ -513,7 +623,12 @@
             poster_path: currentPosterPath,
             caption: captionText.value,
             is_scheduled: isSchedule,
-            schedule_time: scheduleTimestamp
+            schedule_time: scheduleTimestamp,
+            destinations: [
+              ...(document.getElementById('destFb').checked ? ['facebook'] : []),
+              ...(document.getElementById('destIg').checked ? ['instagram'] : []),
+              ...(document.getElementById('destTiktok').checked ? ['tiktok'] : [])
+            ]
           })
         });
         const text = await res.text();
@@ -570,7 +685,7 @@
       toggleScheduleUI(false);
       goToStep(1);
       publishBtn.disabled = false;
-      publishBtn.innerHTML = '<span id="publishBtnText">🚀 ফেসবুক ও ইনস্টাগ্রামে লাইভ পোস্ট করুন</span>';
+      publishBtn.innerHTML = '<span id="publishBtnText">🚀 ফেসবুক, ইনস্টাগ্রাম ও টিকটকে পোস্ট করুন</span>';
     });
   </script>
 
